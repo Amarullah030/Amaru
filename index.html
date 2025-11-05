@@ -1,7 +1,119 @@
-<html>
+<!DOCTYPE html>
+<html lang="id">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countdown Timer 4 Hari - Atlantis Theme</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background: url('https://example.com/atlantis-background.jpg') no-repeat center center fixed; /* Ganti dengan URL gambar background Atlantis yang sesuai */
+            background-size: cover;
+            color: white;
+            overflow: hidden;
+        }
+        .container {
+            position: relative;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        #logo {
+            width: 200px; /* Sesuaikan ukuran logo */
+            height: auto;
+            margin-bottom: 20px;
+            z-index: 10;
+        }
+        #timer {
+            font-size: 48px;
+            color: #fff;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px;
+            border-radius: 10px;
+            z-index: 10;
+        }
+        /* Efek gelembung */
+        .bubble {
+            position: absolute;
+            bottom: -100px;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            animation: float 6s infinite ease-in-out;
+        }
+        .bubble:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .bubble:nth-child(2) { left: 20%; animation-delay: 1s; }
+        .bubble:nth-child(3) { left: 30%; animation-delay: 2s; }
+        .bubble:nth-child(4) { left: 40%; animation-delay: 3s; }
+        .bubble:nth-child(5) { left: 50%; animation-delay: 4s; }
+        .bubble:nth-child(6) { left: 60%; animation-delay: 5s; }
+        .bubble:nth-child(7) { left: 70%; animation-delay: 0s; }
+        .bubble:nth-child(8) { left: 80%; animation-delay: 1s; }
+        .bubble:nth-child(9) { left: 90%; animation-delay: 2s; }
+        .bubble:nth-child(10) { left: 100%; animation-delay: 3s; }
+
+        @keyframes float {
+            0% { transform: translateY(0); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh); opacity: 0; }
+        }
+    </style>
 </head>
 <body>
-<p>halaman baru Amarullah siap</p>
+    <div class="container">
+        <!-- Logo Daarul Uluum Lido -->
+        <img id="logo" src="https://example.com/logo-daarul-uluum-lido.png" alt="Logo Daarul Uluum Lido"> <!-- Ganti dengan URL gambar logo yang sesuai -->
+
+        <!-- Timer Countdown -->
+        <div id="timer">Loading...</div>
+    </div>
+
+    <!-- Gelembung animasi -->
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+    <div class="bubble"></div>
+
+    <script>
+        // Durasi: 4 hari dalam milidetik
+        const totalDuration = 4 * 24 * 60 * 60 * 1000; // 345600000 ms
+        let endTime = Date.now() + totalDuration;
+
+        function updateTimer() {
+            const now = Date.now();
+            const timeLeft = endTime - now;
+
+            if (timeLeft <= 0) {
+                document.getElementById('timer').innerText = 'Waktu Habis!';
+                clearInterval(interval);
+                return;
+            }
+
+            const days = Math.floor(timeLeft / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((timeLeft % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+            const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+            const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+            document.getElementById('timer').innerText = 
+                `${days} Hari ${hours} Jam ${minutes} Menit ${seconds} Detik`;
+        }
+
+        // Update setiap detik
+        const interval = setInterval(updateTimer, 1000);
+        updateTimer(); // Jalankan sekali untuk inisialisasi
+    </script>
 </body>
 </html>
