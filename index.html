@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Countdown 5 Hari dengan Efek Gelembung (Satu File)</title>
+
+    <style>
+        /* Styling Umum */
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            color: white; /* Teks putih agar kontras dengan background */
+            text-align: center;
+            overflow: hidden; /* Penting untuk efek gelembung */
+            
+            /* Ganti URL di bawah ini dengan gambar Anda.
+            Anda bisa menggunakan URL gambar online atau gambar lokal. */
+            background: url('background-image.jpg') no-repeat center center;
+            background-size: cover;
+            position: relative; 
+        }
+
+        /* Overlay untuk kontras yang lebih baik */
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5); /* Hitam transparan 50% */
+            z-index: 1;
+        }
+
+        /* Kontainer Utama */
+        .container {
+            position: relative;
+            z-index: 2; /* Di atas overlay dan gelembung */
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3); 
+            border-radius: 10px;
+        }
+
+        /* Logo di Tengah Atas */
+        .logo-container {
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            width: 100px; /* Sesuaikan ukuran logo */
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 2em;
+        }
+
+        /* Kotak-kotak Waktu */
+        .countdown-timer {
+            display: flex;
+            gap: 15px; 
+            justify-content: center;
+            margin-top: 30px;
+        }
+
+        .time-box {
+            background: rgba(255, 255, 255, 0.2); 
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 10px;
+            padding: 20px 30px;
+            min-width: 80px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px); 
+        }
+
+        .time-box span:first-child {
+            font-size: 3em;
+            font-weight: bold;
+            line-height: 1;
+        }
+
+        .time-box .label {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        /* Styling untuk Efek Gelembung (Bubble Effect) */
+        .bubble-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0; 
+        }
+
+        /* Keyframes untuk animasi gelembung naik */
+        @keyframes bubble-rise {
+            0% {
+                transform: translateY(0) scale(1);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(-100vh) scale(0);
+                opacity: 0;
+            }
+        }
+
+        .bubble {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.4); 
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            bottom: -100px; 
+            animation: bubble-rise linear infinite;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="bubble-background">
+        </div>
+
+    <div class="container">
+        <div class="logo-container">
+            <img src="logo.png" alt="Logo Acara" class="logo">
+        </div>
+
+        <h1>Hitung Mundur Acara Spesial</h1>
+
+        <div class="countdown-timer">
+            <div class="time-box">
+                <span id="days">00</span>
+                <span class="label">Hari</span>
+            </div>
+            <div class="time-box">
+                <span id="hours">00</span>
+                <span class="label">Jam</span>
+            </div>
+            <div class="time-box">
+                <span id="minutes">00</span>
+                <span class="label">Menit</span>
+            </div>
+            <div class="time-box">
+                <span id="seconds">00</span>
+                <span class="label">Detik</span>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Tentukan tanggal/waktu mulai hitung mundur: 5 hari dari sekarang
+        const now = new Date();
+        // Menambahkan 5 hari ke waktu sekarang
+        const countdownEnd = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000));
+        const countdownEndTime = countdownEnd.getTime();
+
+        // Mendapatkan elemen HTML
+        const daysEl = document.getElementById('days');
+        const hoursEl = document.getElementById('hours');
+        const minutesEl = document.getElementById('minutes');
+        const secondsEl = document.getElementById('seconds');
+
+        // Fungsi untuk format angka menjadi 2 digit (misal: 5 -> 05)
+        function formatTime(time) {
+            return time < 10 ? (`0${time}`) : time;
+        }
+
+        // Fungsi utama untuk memperbarui hitung mundur
+        function updateCountdown() {
+            const currentTime = new Date().getTime();
+            const distance = countdownEndTime - currentTime;
+
+            // Konstanta waktu dalam milidetik
+            const oneSecond = 1000;
+            const oneMinute = oneSecond * 60;
+            const oneHour = oneMinute * 60;
+            const oneDay = oneHour * 24;
+
+            if (distance < 0) {
+                clearInterval(countdownInterval);
+                daysEl.textContent = '00';
+                hoursEl.textContent = '00';
+                minutesEl.textContent = '00';
+                secondsEl.textContent = '00';
+                document.querySelector('h1').textContent = 'Waktu Habis!';
+                return;
+            }
+
+            // Perhitungan waktu
+            const days = Math.floor(distance / oneDay);
+            const hours = Math.floor((distance % oneDay) / oneHour);
+            const minutes = Math.floor((distance % oneHour) / oneMinute);
+            const seconds = Math.floor((distance % oneMinute) / oneSecond);
+
+            // Memperbarui tampilan
+            daysEl.textContent = formatTime(days);
+            hoursEl.textContent = formatTime(hours);
+            minutesEl.textContent = formatTime(minutes);
+            secondsEl.textContent = formatTime(seconds);
+        }
+
+        // --- JavaScript untuk Efek Gelembung (Bubble Effect) ---
+
+        const bubbleBackground = document.querySelector('.bubble-background');
+
+        function createBubble() {
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            
+            // Ukuran acak
+            const size = Math.random() * 60 + 20; 
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            
+            // Posisi horizontal acak
+            bubble.style.left = `${Math.random() * 100}%`;
+            
+            // Durasi dan delay animasi acak
+            bubble.style.animationDuration = `${Math.random() * 15 + 5}s`; 
+            bubble.style.animationDelay = `${Math.random() * 5}s`; 
+            
+            bubbleBackground.appendChild(bubble);
+
+            // Hapus gelembung setelah selesai animasi
+            setTimeout(() => {
+                bubble.remove();
+            }, parseFloat(bubble.style.animationDuration) * 1000);
+        }
+
+        // Inisialisasi dan Mulai
+        updateCountdown();
+        const countdownInterval = setInterval(updateCountdown, 1000);
+        
+        // Buat gelembung baru secara berkala
+        setInterval(createBubble, 500); 
+    </script>
+</body>
+</html>
