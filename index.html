@@ -3,252 +3,143 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Countdown 5 Hari dengan Efek Gelembung (Satu File)</title>
-
+    <title>Era Baru Fintech Syariah: Akselerasi 'Waqf Digital'</title>
+    
     <style>
-        /* Styling Umum */
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Georgia', serif;
+            line-height: 1.7;
             margin: 0;
             padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            color: white; /* Teks putih agar kontras dengan background */
-            text-align: center;
-            overflow: hidden; /* Penting untuk efek gelembung */
-            
-            /* Ganti URL di bawah ini dengan gambar Anda.
-            Anda bisa menggunakan URL gambar online atau gambar lokal. */
-            background: url('https://img.freepik.com/premium-photo/galaxy-wallpaper_1134901-199264.jpg?semt=ais_incoming&w=740&q=80') no-repeat center center;
-            background-size: cover;
-            position: relative; 
+            background-color: #f4f4f9;
+            color: #333;
         }
-
-        /* Overlay untuk kontras yang lebih baik */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.5); /* Hitam transparan 50% */
-            z-index: 1;
-        }
-
-        /* Kontainer Utama */
         .container {
-            position: relative;
-            z-index: 2; /* Di atas overlay dan gelembung */
-            padding: 20px;
-            background: rgba(0, 0, 0, 0.3); 
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 30px;
+            background: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
             border-radius: 10px;
         }
-
-        /* Logo di Tengah Atas */
-        .logo-container {
-            margin-bottom: 20px;
-        }
-
-        .logo {
-            width: 100px; /* Sesuaikan ukuran logo */
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-
-        h1 {
-            margin-top: 0;
-            font-size: 2em;
-        }
-
-        /* Kotak-kotak Waktu */
-        .countdown-timer {
-            display: flex;
-            gap: 15px; 
-            justify-content: center;
-            margin-top: 30px;
-        }
-
-        .time-box {
-            background: rgba(255, 255, 255, 0.2); 
-            border: 2px solid rgba(255, 255, 255, 0.5);
-            border-radius: 10px;
-            padding: 20px 30px;
-            min-width: 80px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            backdrop-filter: blur(5px); 
-        }
-
-        .time-box span:first-child {
+        
+        /* HEADER DAN JUDUL */
+        .headline {
             font-size: 3em;
-            font-weight: bold;
-            line-height: 1;
+            color: #004d40; /* Hijau gelap, khas Islami/Fintech */
+            margin-bottom: 5px;
+            line-height: 1.1;
+            font-weight: 700;
         }
-
-        .time-box .label {
+        .sub-headline {
+            font-size: 1.5em;
+            color: #555;
+            margin-bottom: 25px;
+            font-style: italic;
+            border-bottom: 3px solid #004d40;
+            padding-bottom: 10px;
+        }
+        .meta {
             font-size: 0.9em;
-            text-transform: uppercase;
-            margin-top: 5px;
-            opacity: 0.8;
+            color: #777;
+            margin-bottom: 20px;
+            border-left: 5px solid #004d40;
+            padding-left: 10px;
         }
 
-        /* Styling untuk Efek Gelembung (Bubble Effect) */
-        .bubble-background {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 0; 
+        /* KONTEN ARTIKEL */
+        p {
+            margin-bottom: 20px;
+            text-align: justify;
+        }
+        h3 {
+            color: #00897b; /* Hijau lebih cerah */
+            border-bottom: 2px solid #e0f2f1;
+            padding-bottom: 5px;
+            margin-top: 30px;
+            font-weight: 600;
+        }
+        
+        /* KUTIPAN KHUSUS */
+        blockquote {
+            background: #e0f2f1; /* Latar belakang kutipan */
+            border-left: 5px solid #004d40;
+            margin: 25px 0;
+            padding: 15px 20px;
+            font-style: italic;
+            color: #333;
+            font-size: 1.1em;
+            border-radius: 5px;
+        }
+        
+        /* LIST DAN IKON */
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        ul li {
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 10 10"><circle fill="%2300897b" cx="5" cy="5" r="5"/></svg>') no-repeat left 10px;
+            padding-left: 25px;
+            margin-bottom: 10px;
         }
 
-        /* Keyframes untuk animasi gelembung naik */
-        @keyframes bubble-rise {
-            0% {
-                transform: translateY(0) scale(1);
-                opacity: 0.8;
-            }
-            100% {
-                transform: translateY(-100vh) scale(0);
-                opacity: 0;
-            }
+        /* CALL TO ACTION */
+        .cta {
+            margin-top: 40px;
+            padding: 20px;
+            background-color: #f0f0f5;
+            border: 1px dashed #004d40;
+            text-align: center;
+            border-radius: 8px;
         }
-
-        .bubble {
-            position: absolute;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.4); 
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
-            bottom: -100px; 
-            animation: bubble-rise linear infinite;
+        .cta strong {
+            color: #004d40;
         }
     </style>
 </head>
 <body>
 
-    <div class="bubble-background">
-        </div>
-
     <div class="container">
-        <div class="logo-container">
-            <img src="https://i0.wp.com/assets-web-du.s3.ap-southeast-1.amazonaws.com/wp-content/uploads/2019/01/05054727/cropped-logodu.png?fit=512%2C512&ssl=1" alt="Logo Acara" class="logo">
+        <div class="meta">
+            <span style="font-weight: bold;">⚡ Headline Eksklusif: Konferensi Teknologi Islam Global</span>
+            <br>
+            JAKARTA, 19 November 2025 | Oleh: JurnalisAI
         </div>
+        
+        <h1 class="headline">Era Baru Fintech Syariah</h1>
+        <h2 class="sub-headline">Akselerasi "Waqf Digital" Memanfaatkan AI & Blockchain Menuju Target Triliunan Rupiah</h2>
+        
+        <p>Gelombang inovasi teknologi telah mencapai puncaknya di dunia ekonomi syariah. Dalam Konferensi Teknologi Islam Global (GITech) yang baru saja berakhir di Dubai, sorotan utama tertuju pada akselerasi konsep <strong>"Waqf Digital" (Wakaf Digital)</strong> yang memanfaatkan kecerdasan buatan (AI) dan teknologi <em>blockchain</em>.</p>
 
-        <h1>Hitung Mundur Acara Spesial</h1>
+        <p>Inisiatif ini dipandang sebagai solusi revolusioner untuk meningkatkan transparansi, akuntabilitas, dan jangkauan dana wakaf secara masif, mengubahnya dari instrumen sosial tradisional menjadi pilar ekonomi modern yang dapat mencapai target pengelolaan triliunan Rupiah dalam lima tahun ke depan.</p>
 
-        <div class="countdown-timer">
-            <div class="time-box">
-                <span id="days">00</span>
-                <span class="label">Hari</span>
-            </div>
-            <div class="time-box">
-                <span id="hours">00</span>
-                <span class="label">Jam</span>
-            </div>
-            <div class="time-box">
-                <span id="minutes">00</span>
-                <span class="label">Menit</span>
-            </div>
-            <div class="time-box">
-                <span id="seconds">00</span>
-                <span class="label">Detik</span>
-            </div>
+        <h3>🚀 Inovasi Terkini: AI Memilih Penerima Manfaat Terbaik</h3>
+        <p>Salah satu *startup* dari Indonesia, <strong>"WaqfLink"</strong>, meluncurkan prototipe sistem AI yang dapat menganalisis data sosial-ekonomi secara <em>real-time</em> untuk menentukan proyek wakaf mana yang akan memberikan dampak sosial tertinggi.</p>
+
+        <blockquote>
+            "Teknologi ini menghilangkan bias dan inefisiensi. AI bertindak sebagai 'Nazir' (pengelola) yang sangat objektif, memastikan setiap Rupiah wakaf diarahkan ke titik yang paling membutuhkan, dari pengembangan sumber daya air hingga pendanaan pendidikan berbasis digital."<br>
+            <span style="font-size: 0.9em; display: block; margin-top: 5px; text-align: right;">— Dr. Aisha Rasyid, CEO WaqfLink</span>
+        </blockquote>
+
+        <h3>⛓️ Blockchain untuk Kepercayaan Umat</h3>
+        <p>Teknologi <em>blockchain</em> menjadi fondasi utama sistem ini. Setiap transaksi wakaf, mulai dari donasi hingga pencairan dana untuk proyek, dicatat dalam *ledger* yang tidak dapat diubah (immutable ledger). Hal ini memungkinkan setiap *wakif* (pemberi wakaf) melacak secara transparan bagaimana dananya dimanfaatkan, membangun tingkat kepercayaan yang belum pernah ada sebelumnya dalam sejarah pengelolaan wakaf.</p>
+        
+        <p>Panelis dari University of Oxford menekankan bahwa adopsi *blockchain* ini bukan hanya soal teknologi, tetapi juga penegasan kembali nilai-nilai Islami tentang <strong>amanah</strong> (kepercayaan) dan <strong>tanggung jawab</strong> (mas'uliyah) dalam konteks digital.</p>
+
+        <h3>🌍 Tren Global: Integrasi Halal Lifestyle ke Metaverse</h3>
+        <p>Selain Fintech, tren lain yang menarik perhatian adalah semakin matangnya ekosistem <strong>"Halal Lifestyle"</strong> yang terintegrasi dengan teknologi imersif, khususnya **Metaverse**. Contoh implementasi terbaru meliputi:</p>
+        
+        <ul>
+            <li><strong>Virtual Umrah Training:</strong> Platform VR/AR kini menawarkan simulasi Umrah yang sangat realistis sebagai pelatihan bagi jamaah sebelum berangkat ke Tanah Suci.</li>
+            <li><strong>Modest Fashion NFT:</strong> Desainer busana Muslim ternama mulai merilis koleksi *Modest Fashion* dalam bentuk NFT (Non-Fungible Token), memungkinkan pengguna di Metaverse untuk memiliki aset digital yang sesuai dengan prinsip Islami.</li>
+        </ul>
+
+        <p>Kesimpulannya, Konferensi GITech 2025 menegaskan bahwa Islam dan teknologi bukan lagi dua entitas yang terpisah, melainkan kekuatan yang bersatu untuk menciptakan solusi ekonomi dan sosial yang lebih adil dan transparan di seluruh dunia.</p>
+
+        <div class="cta">
+            <strong>Berita Selanjutnya:</strong> Ingin tahu lebih dalam tentang teknologi Wakaf Digital? Saya bisa mencarikan Anda video penjelasan singkat tentang cara kerja *Fintech Syariah* terbaru ini di YouTube.
         </div>
-
     </div>
 
-    <script>
-        // Tentukan tanggal/waktu mulai hitung mundur: 5 hari dari sekarang
-        const now = new Date();
-        // Menambahkan 5 hari ke waktu sekarang
-        const countdownEnd = new Date(now.getTime() + (5 * 24 * 60 * 60 * 1000));
-        const countdownEndTime = countdownEnd.getTime();
-
-        // Mendapatkan elemen HTML
-        const daysEl = document.getElementById('days');
-        const hoursEl = document.getElementById('hours');
-        const minutesEl = document.getElementById('minutes');
-        const secondsEl = document.getElementById('seconds');
-
-        // Fungsi untuk format angka menjadi 2 digit (misal: 5 -> 05)
-        function formatTime(time) {
-            return time < 10 ? (`0${time}`) : time;
-        }
-
-        // Fungsi utama untuk memperbarui hitung mundur
-        function updateCountdown() {
-            const currentTime = new Date().getTime();
-            const distance = countdownEndTime - currentTime;
-
-            // Konstanta waktu dalam milidetik
-            const oneSecond = 1000;
-            const oneMinute = oneSecond * 60;
-            const oneHour = oneMinute * 60;
-            const oneDay = oneHour * 24;
-
-            if (distance < 0) {
-                clearInterval(countdownInterval);
-                daysEl.textContent = '00';
-                hoursEl.textContent = '00';
-                minutesEl.textContent = '00';
-                secondsEl.textContent = '00';
-                document.querySelector('h1').textContent = 'Waktu Habis!';
-                return;
-            }
-
-            // Perhitungan waktu
-            const days = Math.floor(distance / oneDay);
-            const hours = Math.floor((distance % oneDay) / oneHour);
-            const minutes = Math.floor((distance % oneHour) / oneMinute);
-            const seconds = Math.floor((distance % oneMinute) / oneSecond);
-
-            // Memperbarui tampilan
-            daysEl.textContent = formatTime(days);
-            hoursEl.textContent = formatTime(hours);
-            minutesEl.textContent = formatTime(minutes);
-            secondsEl.textContent = formatTime(seconds);
-        }
-
-        // --- JavaScript untuk Efek Gelembung (Bubble Effect) ---
-
-        const bubbleBackground = document.querySelector('.bubble-background');
-
-        function createBubble() {
-            const bubble = document.createElement('div');
-            bubble.classList.add('bubble');
-            
-            // Ukuran acak
-            const size = Math.random() * 60 + 20; 
-            bubble.style.width = `${size}px`;
-            bubble.style.height = `${size}px`;
-            
-            // Posisi horizontal acak
-            bubble.style.left = `${Math.random() * 100}%`;
-            
-            // Durasi dan delay animasi acak
-            bubble.style.animationDuration = `${Math.random() * 15 + 5}s`; 
-            bubble.style.animationDelay = `${Math.random() * 5}s`; 
-            
-            bubbleBackground.appendChild(bubble);
-
-            // Hapus gelembung setelah selesai animasi
-            setTimeout(() => {
-                bubble.remove();
-            }, parseFloat(bubble.style.animationDuration) * 1000);
-        }
-
-        // Inisialisasi dan Mulai
-        updateCountdown();
-        const countdownInterval = setInterval(updateCountdown, 1000);
-        
-        // Buat gelembung baru secara berkala
-        setInterval(createBubble, 500); 
-    </script>
 </body>
 </html>
