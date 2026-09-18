@@ -1,91 +1,673 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HISADA - Inventaris</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <link rel="stylesheet" href="style.css">
+    <title>HISADA Inventaris</title>
+
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-  <div id="app">
-    <div class="login-container">
+    <!-- =========================
+         HALAMAN LOGIN
+    ========================== -->
+    <section id="authPage" class="auth-page">
 
-      <img src="logo.svg" alt="Logo HISADA" class="login-logo">
+        <div class="auth-card">
 
-      <h1>HISADA</h1>
-      <p class="subtitle">Sistem Inventaris</p>
+            <img src="logo.svg" class="auth-logo" alt="Logo HISADA">
 
-      <div class="tabs">
-        <button class="tab active" id="loginTab">Login</button>
-        <button class="tab" id="signupTab">Sign Up</button>
-      </div>
+            <h1>HISADA</h1>
 
-      <!-- LOGIN -->
-      <form id="loginForm">
+            <p class="subtitle">
+                Himpunan Santri Daarul Uluum Lido
+            </p>
 
-        <label>Username</label>
-        <input
-          type="text"
-          id="loginUsername"
-          placeholder="Masukkan username"
-          required
-        >
+            <!-- TAB -->
+            <div class="auth-tabs">
+                <button
+                    class="auth-tab active"
+                    id="loginTab"
+                    onclick="showAuth('login')">
+                    Login
+                </button>
 
-        <label>Password</label>
-        <input
-          type="password"
-          id="loginPassword"
-          placeholder="Masukkan password"
-          required
-        >
+                <button
+                    class="auth-tab"
+                    id="signupTab"
+                    onclick="showAuth('signup')">
+                    Sign Up
+                </button>
+            </div>
 
-        <button type="submit" class="primary-btn">
-          Login
-        </button>
+            <!-- LOGIN -->
+            <form id="loginForm">
 
-        <p id="loginMessage" class="message"></p>
+                <div class="form-group">
+                    <label>Username</label>
 
-      </form>
+                    <input
+                        type="text"
+                        id="loginUser"
+                        placeholder="Masukkan username"
+                        required>
+                </div>
 
-      <!-- SIGN UP -->
-      <form id="signupForm" class="hidden">
+                <div class="form-group">
+                    <label>Password</label>
 
-        <label>Username</label>
-        <input
-          type="text"
-          id="signupUsername"
-          placeholder="Buat username"
-          required
-        >
+                    <input
+                        type="password"
+                        id="loginPass"
+                        placeholder="Masukkan password"
+                        required>
+                </div>
 
-        <label>Password</label>
-        <input
-          type="password"
-          id="signupPassword"
-          placeholder="Buat password"
-          required
-        >
+                <button class="primary-btn" type="submit">
+                    Masuk
+                </button>
 
-        <label>Bagian</label>
-        <select id="signupDepartment" required>
-          <option value="">-- Pilih Bagian --</option>
-        </select>
+                <p id="loginMessage" class="form-message"></p>
 
-        <button type="submit" class="primary-btn">
-          Daftar
-        </button>
+            </form>
 
-        <p id="signupMessage" class="message"></p>
 
-      </form>
+            <!-- SIGN UP -->
+            <form id="signupForm" class="hidden">
+
+                <div class="form-group">
+                    <label>Nama</label>
+
+                    <input
+                        type="text"
+                        id="signName"
+                        placeholder="Nama lengkap"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>Username</label>
+
+                    <input
+                        type="text"
+                        id="signUser"
+                        placeholder="Buat username"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+
+                    <input
+                        type="password"
+                        id="signPass"
+                        placeholder="Buat password"
+                        required>
+                </div>
+
+                <div class="form-group">
+                    <label>Bagian</label>
+
+                    <select id="signDept" required>
+                        <option value="">-- Pilih Bagian --</option>
+                    </select>
+                </div>
+
+                <button class="primary-btn" type="submit">
+                    Daftar
+                </button>
+
+                <p class="signup-info">
+                    Akun baru harus disetujui Admin sebelum dapat digunakan.
+                </p>
+
+                <p id="signupMessage" class="form-message"></p>
+
+            </form>
+
+        </div>
+
+    </section>
+
+
+    <!-- =========================
+         APLIKASI UTAMA
+    ========================== -->
+    <section id="appPage" class="app-page hidden">
+
+        <!-- SIDEBAR -->
+        <aside class="sidebar">
+
+            <div class="brand">
+
+                <img src="logo.svg" alt="Logo">
+
+                <div>
+                    <strong>HISADA</strong>
+                    <small>Inventaris</small>
+                </div>
+
+            </div>
+
+
+            <nav class="sidebar-nav">
+
+                <button
+                    class="nav-item active"
+                    data-page="dashboard"
+                    onclick="showPage('dashboard')">
+
+                    <span>📊</span>
+                    Dashboard
+
+                </button>
+
+
+                <button
+                    class="nav-item"
+                    data-page="inventory"
+                    onclick="showPage('inventory')">
+
+                    <span>📦</span>
+                    Inventaris
+
+                </button>
+
+
+                <!-- KHUSUS ADMIN -->
+                <button
+                    class="nav-item admin-only"
+                    data-page="accounts"
+                    onclick="showPage('accounts')">
+
+                    <span>👥</span>
+                    Akun
+
+                </button>
+
+            </nav>
+
+
+            <div class="sidebar-bottom">
+
+                <div class="current-user">
+
+                    <div class="user-avatar">
+                        👤
+                    </div>
+
+                    <div>
+                        <strong id="sidebarUserName">
+                            User
+                        </strong>
+
+                        <small id="sidebarUserRole">
+                            Bagian
+                        </small>
+                    </div>
+
+                </div>
+
+
+                <button
+                    class="logout-btn"
+                    onclick="logout()">
+
+                    🚪 Keluar
+
+                </button>
+
+            </div>
+
+        </aside>
+
+
+        <!-- MAIN -->
+        <main class="main-content">
+
+            <!-- TOPBAR -->
+            <header class="topbar">
+
+                <div>
+
+                    <h2 id="pageTitle">
+                        Dashboard
+                    </h2>
+
+                    <p id="pageSubtitle">
+                        Ringkasan inventaris HISADA
+                    </p>
+
+                </div>
+
+                <div class="topbar-user">
+
+                    <span id="topbarUser">
+                        User
+                    </span>
+
+                </div>
+
+            </header>
+
+
+            <!-- =====================
+                 DASHBOARD
+            ====================== -->
+            <section
+                id="dashboardPage"
+                class="content-page">
+
+                <div class="welcome-box">
+
+                    <div>
+                        <span class="welcome-label">
+                            Selamat datang 👋
+                        </span>
+
+                        <h1 id="welcomeName">
+                            User
+                        </h1>
+
+                        <p>
+                            Berikut ringkasan inventaris HISADA.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <!-- STATISTIK -->
+                <div class="stats-grid">
+
+                    <div class="stat-card">
+                        <div class="stat-icon">🟢</div>
+
+                        <div>
+                            <span>Baik</span>
+                            <strong id="statGood">0</strong>
+                        </div>
+                    </div>
+
+
+                    <div class="stat-card">
+                        <div class="stat-icon">🟡</div>
+
+                        <div>
+                            <span>Kurang Baik</span>
+                            <strong id="statFair">0</strong>
+                        </div>
+                    </div>
+
+
+                    <div class="stat-card">
+                        <div class="stat-icon">🟠</div>
+
+                        <div>
+                            <span>Rusak Berat</span>
+                            <strong id="statBad">0</strong>
+                        </div>
+                    </div>
+
+
+                    <div class="stat-card">
+                        <div class="stat-icon">🔴</div>
+
+                        <div>
+                            <span>Hilang</span>
+                            <strong id="statLost">0</strong>
+                        </div>
+                    </div>
+
+
+                    <div class="stat-card total-card">
+                        <div class="stat-icon">📦</div>
+
+                        <div>
+                            <span>Total</span>
+                            <strong id="statTotal">0</strong>
+                        </div>
+                    </div>
+
+                </div>
+
+
+                <!-- RINGKASAN BAGIAN -->
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+                            <h3>Ringkasan Per Bagian</h3>
+
+                            <p>
+                                Jumlah inventaris berdasarkan bagian.
+                            </p>
+                        </div>
+
+                    </div>
+
+                    <div
+                        id="departmentSummary"
+                        class="department-grid">
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =====================
+                 INVENTARIS
+            ====================== -->
+            <section
+                id="inventoryPage"
+                class="content-page hidden">
+
+                <div class="page-actions">
+
+                    <div>
+                        <h3>Inventaris</h3>
+
+                        <p>
+                            Kelola data barang inventaris.
+                        </p>
+                    </div>
+
+                    <button
+                        class="primary-btn"
+                        onclick="openAddItem()">
+
+                        + Tambah Barang
+
+                    </button>
+
+                </div>
+
+
+                <!-- FILTER -->
+                <div class="filter-bar">
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="🔍 Cari nama barang..."
+                        oninput="renderInventory()">
+
+
+                    <select
+                        id="conditionFilter"
+                        onchange="renderInventory()">
+
+                        <option value="all">
+                            Semua Kondisi
+                        </option>
+
+                        <option value="Baik">
+                            Baik
+                        </option>
+
+                        <option value="Kurang Baik">
+                            Kurang Baik
+                        </option>
+
+                        <option value="Rusak Berat">
+                            Rusak Berat
+                        </option>
+
+                        <option value="Hilang">
+                            Hilang
+                        </option>
+
+                    </select>
+
+
+                    <select
+                        id="departmentFilter"
+                        onchange="renderInventory()">
+
+                        <option value="all">
+                            Semua Bagian
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- TABLE -->
+                <div class="table-container">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Nomor</th>
+                                <th>Bagian</th>
+                                <th>Barang</th>
+                                <th>Jumlah</th>
+                                <th>Kondisi</th>
+                                <th>Keterangan</th>
+                                <th>Aksi</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="inventoryBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+
+            <!-- =====================
+                 AKUN ADMIN
+            ====================== -->
+            <section
+                id="accountsPage"
+                class="content-page hidden">
+
+                <div class="page-actions">
+
+                    <div>
+                        <h3>Manajemen Akun</h3>
+
+                        <p>
+                            Kelola akun yang mendaftar ke sistem.
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="table-container">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Nama</th>
+                                <th>Username</th>
+                                <th>Bagian</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Aksi</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="accountsBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        </main>
+
+    </section>
+
+
+    <!-- =========================
+         MODAL INVENTARIS
+    ========================== -->
+    <div
+        id="itemModal"
+        class="modal hidden">
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <div>
+                    <h3 id="modalTitle">
+                        Tambah Barang
+                    </h3>
+
+                    <p>
+                        Masukkan informasi barang.
+                    </p>
+                </div>
+
+                <button
+                    class="close-btn"
+                    onclick="closeItemModal()">
+
+                    ×
+
+                </button>
+
+            </div>
+
+
+            <form id="itemForm">
+
+                <input
+                    type="hidden"
+                    id="editItemId">
+
+
+                <div class="form-group">
+
+                    <label>Bagian</label>
+
+                    <select
+                        id="itemDepartment"
+                        required>
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>Nama Barang</label>
+
+                    <input
+                        type="text"
+                        id="itemName"
+                        placeholder="Contoh: Kursi"
+                        required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>Jumlah</label>
+
+                    <input
+                        type="number"
+                        id="itemQuantity"
+                        min="1"
+                        required>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>Kondisi</label>
+
+                    <select
+                        id="itemCondition"
+                        required>
+
+                        <option value="Baik">
+                            Baik
+                        </option>
+
+                        <option value="Kurang Baik">
+                            Kurang Baik
+                        </option>
+
+                        <option value="Rusak Berat">
+                            Rusak Berat
+                        </option>
+
+                        <option value="Hilang">
+                            Hilang
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label>Keterangan</label>
+
+                    <textarea
+                        id="itemDescription"
+                        placeholder="Keterangan tambahan..."
+                        rows="3">
+                    </textarea>
+
+                </div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        class="secondary-btn"
+                        onclick="closeItemModal()">
+
+                        Batal
+
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="primary-btn">
+
+                        Simpan
+
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
 
     </div>
-  </div>
 
-  <script src="script.js"></script>
+
+    <script src="script.js"></script>
 
 </body>
 </html>
