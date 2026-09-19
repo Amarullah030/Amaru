@@ -3,671 +3,1164 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>HISADA Inventaris</title>
-
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <!-- =========================
-         HALAMAN LOGIN
-    ========================== -->
-    <section id="authPage" class="auth-page">
+<!-- =====================================================
+     LOGIN
+====================================================== -->
 
-        <div class="auth-card">
+<section id="loginPage" class="page auth-page">
 
-            <img src="image1.png" class="auth-logo" alt="Logo HISADA">
+    <div class="auth-card">
 
-            <h1>HISADA</h1>
+        <img
+            src="image1.png"
+            class="auth-logo"
+            alt="Logo HISADA"
+        >
 
-            <p class="subtitle">
-                Himpunan Santri Daarul Uluum Lido
-            </p>
+        <h1>HISADA</h1>
 
-            <!-- TAB -->
-            <div class="auth-tabs">
-                <button
-                    class="auth-tab active"
-                    id="loginTab"
-                    onclick="showAuth('login')">
-                    Login
-                </button>
+        <p class="auth-subtitle">
+            Sistem Inventaris
+        </p>
 
-                <button
-                    class="auth-tab"
-                    id="signupTab"
-                    onclick="showAuth('signup')">
-                    Sign Up
-                </button>
-            </div>
+        <form id="loginForm">
 
-            <!-- LOGIN -->
-            <form id="loginForm">
-
-                <div class="form-group">
-                    <label>Username</label>
-
-                    <input
-                        type="text"
-                        id="loginUser"
-                        placeholder="Masukkan username"
-                        required>
-                </div>
-
-                <div class="form-group">
-                    <label>Password</label>
-
-                    <input
-                        type="password"
-                        id="loginPass"
-                        placeholder="Masukkan password"
-                        required>
-                </div>
-
-                <button class="primary-btn" type="submit">
-                    Masuk
-                </button>
-
-                <p id="loginMessage" class="form-message"></p>
-
-            </form>
-
-
-            <!-- SIGN UP -->
-            <form id="signupForm" class="hidden">
-
-                <div class="form-group">
-                    <label>Nama</label>
-
-                    <input
-                        type="text"
-                        id="signName"
-                        placeholder="Nama lengkap"
-                        required>
-                </div>
-
-                <div class="form-group">
-                    <label>Username</label>
-
-                    <input
-                        type="text"
-                        id="signUser"
-                        placeholder="Buat username"
-                        required>
-                </div>
-
-                <div class="form-group">
-                    <label>Password</label>
-
-                    <input
-                        type="password"
-                        id="signPass"
-                        placeholder="Buat password"
-                        required>
-                </div>
-
-                <div class="form-group">
-                    <label>Bagian</label>
-
-                    <select id="signDept" required>
-                        <option value="">-- Pilih Bagian --</option>
-                    </select>
-                </div>
-
-                <button class="primary-btn" type="submit">
-                    Daftar
-                </button>
-
-                <p class="signup-info">
-                    Akun baru harus disetujui Admin sebelum dapat digunakan.
-                </p>
-
-                <p id="signupMessage" class="form-message"></p>
-
-            </form>
-
-        </div>
-
-    </section>
-
-
-    <!-- =========================
-         APLIKASI UTAMA
-    ========================== -->
-    <section id="appPage" class="app-page hidden">
-
-        <!-- SIDEBAR -->
-        <aside class="sidebar">
-
-            <div class="brand">
-
-                <img src="image1.png" alt="Logo">
-
-                <div>
-                    <strong>HISADA</strong>
-                    <small>Inventaris</small>
-                </div>
-
-            </div>
-
-
-            <nav class="sidebar-nav">
-
-                <button
-                    class="nav-item active"
-                    data-page="dashboard"
-                    onclick="showPage('dashboard')">
-
-                    <span>📊</span>
-                    Dashboard
-
-                </button>
-
-
-                <button
-                    class="nav-item"
-                    data-page="inventory"
-                    onclick="showPage('inventory')">
-
-                    <span>📦</span>
-                    Inventaris
-
-                </button>
-
-
-                <!-- KHUSUS ADMIN -->
-                <button
-                    class="nav-item admin-only"
-                    data-page="accounts"
-                    onclick="showPage('accounts')">
-
-                    <span>👥</span>
-                    Akun
-
-                </button>
-
-            </nav>
-
-
-            <div class="sidebar-bottom">
-
-                <div class="current-user">
-
-                    <div class="user-avatar">
-                        👤
-                    </div>
-
-                    <div>
-                        <strong id="sidebarUserName">
-                            User
-                        </strong>
-
-                        <small id="sidebarUserRole">
-                            Bagian
-                        </small>
-                    </div>
-
-                </div>
-
-
-                <button
-                    class="logout-btn"
-                    onclick="logout()">
-
-                    🚪 Keluar
-
-                </button>
-
-            </div>
-
-        </aside>
-
-
-        <!-- MAIN -->
-        <main class="main-content">
-
-            <!-- TOPBAR -->
-            <header class="topbar">
-
-                <div>
-
-                    <h2 id="pageTitle">
-                        Dashboard
-                    </h2>
-
-                    <p id="pageSubtitle">
-                        Ringkasan inventaris HISADA
-                    </p>
-
-                </div>
-
-                <div class="topbar-user">
-
-                    <span id="topbarUser">
-                        User
-                    </span>
-
-                </div>
-
-            </header>
-
-
-            <!-- =====================
-                 DASHBOARD
-            ====================== -->
-            <section
-                id="dashboardPage"
-                class="content-page">
-
-                <div class="welcome-box">
-
-                    <div>
-                        <span class="welcome-label">
-                            Selamat datang 👋
-                        </span>
-
-                        <h1 id="welcomeName">
-                            User
-                        </h1>
-
-                        <p>
-                            Berikut ringkasan inventaris HISADA.
-                        </p>
-                    </div>
-
-                </div>
-
-
-                <!-- STATISTIK -->
-                <div class="stats-grid">
-
-                    <div class="stat-card">
-                        <div class="stat-icon">🟢</div>
-
-                        <div>
-                            <span>Baik</span>
-                            <strong id="statGood">0</strong>
-                        </div>
-                    </div>
-
-
-                    <div class="stat-card">
-                        <div class="stat-icon">🟡</div>
-
-                        <div>
-                            <span>Kurang Baik</span>
-                            <strong id="statFair">0</strong>
-                        </div>
-                    </div>
-
-
-                    <div class="stat-card">
-                        <div class="stat-icon">🟠</div>
-
-                        <div>
-                            <span>Rusak Berat</span>
-                            <strong id="statBad">0</strong>
-                        </div>
-                    </div>
-
-
-                    <div class="stat-card">
-                        <div class="stat-icon">🔴</div>
-
-                        <div>
-                            <span>Hilang</span>
-                            <strong id="statLost">0</strong>
-                        </div>
-                    </div>
-
-
-                    <div class="stat-card total-card">
-                        <div class="stat-icon">📦</div>
-
-                        <div>
-                            <span>Total</span>
-                            <strong id="statTotal">0</strong>
-                        </div>
-                    </div>
-
-                </div>
-
-
-                <!-- RINGKASAN BAGIAN -->
-                <div class="panel">
-
-                    <div class="panel-header">
-
-                        <div>
-                            <h3>Ringkasan Per Bagian</h3>
-
-                            <p>
-                                Jumlah inventaris berdasarkan bagian.
-                            </p>
-                        </div>
-
-                    </div>
-
-                    <div
-                        id="departmentSummary"
-                        class="department-grid">
-                    </div>
-
-                </div>
-
-            </section>
-
-
-            <!-- =====================
-                 INVENTARIS
-            ====================== -->
-            <section
-                id="inventoryPage"
-                class="content-page hidden">
-
-                <div class="page-actions">
-
-                    <div>
-                        <h3>Inventaris</h3>
-
-                        <p>
-                            Kelola data barang inventaris.
-                        </p>
-                    </div>
-
-                    <button
-                        class="primary-btn"
-                        onclick="openAddItem()">
-
-                        + Tambah Barang
-
-                    </button>
-
-                </div>
-
-
-                <!-- FILTER -->
-                <div class="filter-bar">
-
-                    <input
-                        type="text"
-                        id="searchInput"
-                        placeholder="🔍 Cari nama barang..."
-                        oninput="renderInventory()">
-
-
-                    <select
-                        id="conditionFilter"
-                        onchange="renderInventory()">
-
-                        <option value="all">
-                            Semua Kondisi
-                        </option>
-
-                        <option value="Baik">
-                            Baik
-                        </option>
-
-                        <option value="Kurang Baik">
-                            Kurang Baik
-                        </option>
-
-                        <option value="Rusak Berat">
-                            Rusak Berat
-                        </option>
-
-                        <option value="Hilang">
-                            Hilang
-                        </option>
-
-                    </select>
-
-
-                    <select
-                        id="departmentFilter"
-                        onchange="renderInventory()">
-
-                        <option value="all">
-                            Semua Bagian
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <!-- TABLE -->
-                <div class="table-container">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-                                <th>Nomor</th>
-                                <th>Bagian</th>
-                                <th>Barang</th>
-                                <th>Jumlah</th>
-                                <th>Kondisi</th>
-                                <th>Keterangan</th>
-                                <th>Aksi</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="inventoryBody">
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </section>
-
-
-            <!-- =====================
-                 AKUN ADMIN
-            ====================== -->
-            <section
-                id="accountsPage"
-                class="content-page hidden">
-
-                <div class="page-actions">
-
-                    <div>
-                        <h3>Manajemen Akun</h3>
-
-                        <p>
-                            Kelola akun yang mendaftar ke sistem.
-                        </p>
-                    </div>
-
-                </div>
-
-
-                <div class="table-container">
-
-                    <table>
-
-                        <thead>
-
-                            <tr>
-                                <th>Nama</th>
-                                <th>Username</th>
-                                <th>Bagian</th>
-                                <th>Role</th>
-                                <th>Status</th>
-                                <th>Aksi</th>
-                            </tr>
-
-                        </thead>
-
-                        <tbody id="accountsBody">
-
-                        </tbody>
-
-                    </table>
-
-                </div>
-
-            </section>
-
-        </main>
-
-    </section>
-
-
-    <!-- =========================
-         MODAL INVENTARIS
-    ========================== -->
-    <div
-        id="itemModal"
-        class="modal hidden">
-
-        <div class="modal-card">
-
-            <div class="modal-header">
-
-                <div>
-                    <h3 id="modalTitle">
-                        Tambah Barang
-                    </h3>
-
-                    <p>
-                        Masukkan informasi barang.
-                    </p>
-                </div>
-
-                <button
-                    class="close-btn"
-                    onclick="closeItemModal()">
-
-                    ×
-
-                </button>
-
-            </div>
-
-
-            <form id="itemForm">
+            <div class="form-group">
+                <label for="loginUsername">
+                    Username
+                </label>
 
                 <input
-                    type="hidden"
-                    id="editItemId">
+                    type="text"
+                    id="loginUsername"
+                    autocomplete="username"
+                    required
+                >
+            </div>
 
+            <div class="form-group">
+                <label for="loginPassword">
+                    Password
+                </label>
 
-                <div class="form-group">
+                <input
+                    type="password"
+                    id="loginPassword"
+                    autocomplete="current-password"
+                    required
+                >
+            </div>
 
-                    <label>Bagian</label>
+            <button
+                type="submit"
+                class="primary-btn"
+            >
+                Login
+            </button>
 
-                    <select
-                        id="itemDepartment"
-                        required>
-                    </select>
+        </form>
 
-                </div>
+        <div class="auth-switch">
 
+            <span>
+                Belum punya akun?
+            </span>
 
-                <div class="form-group">
-
-                    <label>Nama Barang</label>
-
-                    <input
-                        type="text"
-                        id="itemName"
-                        placeholder="Contoh: Kursi"
-                        required>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>Jumlah</label>
-
-                    <input
-                        type="number"
-                        id="itemQuantity"
-                        min="1"
-                        required>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>Kondisi</label>
-
-                    <select
-                        id="itemCondition"
-                        required>
-
-                        <option value="Baik">
-                            Baik
-                        </option>
-
-                        <option value="Kurang Baik">
-                            Kurang Baik
-                        </option>
-
-                        <option value="Rusak Berat">
-                            Rusak Berat
-                        </option>
-
-                        <option value="Hilang">
-                            Hilang
-                        </option>
-
-                    </select>
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label>Keterangan</label>
-
-                    <textarea
-                        id="itemDescription"
-                        placeholder="Keterangan tambahan..."
-                        rows="3">
-                    </textarea>
-
-                </div>
-
-
-                <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        class="secondary-btn"
-                        onclick="closeItemModal()">
-
-                        Batal
-
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="primary-btn">
-
-                        Simpan
-
-                    </button>
-
-                </div>
-
-            </form>
+            <button
+                type="button"
+                id="showSignupButton"
+                class="text-btn"
+            >
+                Sign Up
+            </button>
 
         </div>
 
     </div>
 
+</section>
 
-    <script src="script.js"></script>
+
+<!-- =====================================================
+     SIGN UP
+====================================================== -->
+
+<section id="signupPage" class="page auth-page hidden">
+
+    <div class="auth-card">
+
+        <img
+            src="image1.png"
+            class="auth-logo"
+            alt="Logo HISADA"
+        >
+
+        <h1>Daftar Akun</h1>
+
+        <p class="auth-subtitle">
+            Akun akan menunggu persetujuan Admin
+        </p>
+
+        <form id="signupForm">
+
+            <div class="form-group">
+
+                <label for="signupName">
+                    Nama Lengkap
+                </label>
+
+                <input
+                    type="text"
+                    id="signupName"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="signupUsername">
+                    Username
+                </label>
+
+                <input
+                    type="text"
+                    id="signupUsername"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="signupPassword">
+                    Password
+                </label>
+
+                <input
+                    type="password"
+                    id="signupPassword"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="signupDepartment">
+                    Bagian
+                </label>
+
+                <select
+                    id="signupDepartment"
+                    data-departments
+                    required
+                >
+                    <option value="">
+                        Pilih Bagian
+                    </option>
+                </select>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="primary-btn"
+            >
+                Daftar
+            </button>
+
+        </form>
+
+
+        <div class="auth-switch">
+
+            <span>
+                Sudah punya akun?
+            </span>
+
+            <button
+                type="button"
+                id="showLoginButton"
+                class="text-btn"
+            >
+                Login
+            </button>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<!-- =====================================================
+     APLIKASI
+====================================================== -->
+
+<section id="appPage" class="app-page hidden">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-brand">
+
+            <img
+                src="image1.png"
+                class="sidebar-logo"
+                alt="Logo HISADA"
+            >
+
+            <div>
+                <strong>HISADA</strong>
+                <span>Inventaris</span>
+            </div>
+
+        </div>
+
+
+        <nav class="sidebar-nav">
+
+            <button
+                type="button"
+                class="nav-link active"
+                data-target="dashboard"
+            >
+                🏠
+                <span>Dashboard</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-link"
+                data-target="inventory"
+            >
+                📦
+                <span>Inventaris</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-link"
+                data-target="loans"
+            >
+                📋
+                <span>Peminjaman</span>
+            </button>
+
+
+            <button
+                type="button"
+                class="nav-link"
+                data-target="accounts"
+                data-admin-only
+            >
+                👥
+                <span>Manajemen Akun</span>
+            </button>
+
+        </nav>
+
+
+        <div class="sidebar-user">
+
+            <div class="user-avatar">
+                H
+            </div>
+
+            <div>
+
+                <strong id="currentUserName">
+                    User
+                </strong>
+
+                <span id="currentUserRole">
+                    Bagian
+                </span>
+
+            </div>
+
+        </div>
+
+
+        <button
+            type="button"
+            id="logoutButton"
+            class="logout-btn"
+        >
+            🚪 Keluar
+        </button>
+
+    </aside>
+
+
+    <!-- MAIN -->
+
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+
+                <h1 id="dashboardTitle">
+                    Dashboard HISADA
+                </h1>
+
+                <p>
+                    Sistem Inventaris HISADA
+                </p>
+
+            </div>
+
+
+            <div class="topbar-user">
+
+                <span>
+                    👤
+                </span>
+
+                <div>
+
+                    <strong id="topbarName">
+                        User
+                    </strong>
+
+                    <small id="currentUserDepartment">
+                        Bagian
+                    </small>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- =================================================
+             DASHBOARD
+        ================================================== -->
+
+        <section
+            class="page content-page"
+            data-section="dashboard"
+        >
+
+            <div class="welcome-card">
+
+                <h2>
+                    Selamat Datang di HISADA
+                </h2>
+
+                <p>
+                    Pantau kondisi dan jumlah inventaris
+                    bagian Anda.
+                </p>
+
+            </div>
+
+
+            <div class="stats-grid">
+
+                <div class="stat-card good">
+
+                    <span>
+                        Baik
+                    </span>
+
+                    <strong id="statGood">
+                        0
+                    </strong>
+
+                    <small>
+                        Unit
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card fair">
+
+                    <span>
+                        Kurang Baik
+                    </span>
+
+                    <strong id="statFair">
+                        0
+                    </strong>
+
+                    <small>
+                        Unit
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card bad">
+
+                    <span>
+                        Rusak Berat
+                    </span>
+
+                    <strong id="statBad">
+                        0
+                    </strong>
+
+                    <small>
+                        Unit
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card lost">
+
+                    <span>
+                        Hilang
+                    </span>
+
+                    <strong id="statLost">
+                        0
+                    </strong>
+
+                    <small>
+                        Unit
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card total">
+
+                    <span>
+                        Total
+                    </span>
+
+                    <strong id="statTotal">
+                        0
+                    </strong>
+
+                    <small>
+                        Unit
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="section-card">
+
+                <div class="section-header">
+
+                    <div>
+                        <h2>
+                            Ringkasan Bagian
+                        </h2>
+
+                        <p>
+                            Ringkasan jumlah inventaris setiap bagian
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="departmentSummary"
+                    class="department-grid"
+                ></div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             INVENTARIS
+        ================================================== -->
+
+        <section
+            class="page content-page hidden"
+            data-section="inventory"
+        >
+
+            <div class="section-card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            Inventaris
+                        </h2>
+
+                        <p>
+                            Data barang dan kondisi inventaris
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="addItemButton"
+                        class="primary-btn"
+                    >
+                        + Tambah Barang
+                    </button>
+
+                </div>
+
+
+                <div class="filter-bar">
+
+                    <select
+                        id="inventoryDepartmentFilter"
+                        data-department-filter
+                    >
+                        <option value="">
+                            Semua Bagian
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    No
+                                </th>
+
+                                <th>
+                                    Barang
+                                </th>
+
+                                <th>
+                                    Total
+                                </th>
+
+                                <th>
+                                    Baik
+                                </th>
+
+                                <th>
+                                    Kurang Baik
+                                </th>
+
+                                <th>
+                                    Rusak Berat
+                                </th>
+
+                                <th>
+                                    Hilang
+                                </th>
+
+                                <th>
+                                    Bagian
+                                </th>
+
+                                <th>
+                                    Keterangan
+                                </th>
+
+                                <th>
+                                    Aksi
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="inventoryTableBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             PEMINJAMAN
+        ================================================== -->
+
+        <section
+            class="page content-page hidden"
+            data-section="loans"
+        >
+
+            <div class="section-card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            Data Peminjaman
+                        </h2>
+
+                        <p>
+                            Riwayat dan status peminjaman barang
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        id="addLoanButton"
+                        class="primary-btn"
+                    >
+                        + Tambah Peminjaman
+                    </button>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    ID
+                                </th>
+
+                                <th>
+                                    Barang
+                                </th>
+
+                                <th>
+                                    Jumlah
+                                </th>
+
+                                <th>
+                                    Peminjam
+                                </th>
+
+                                <th>
+                                    Tanggal Pinjam
+                                </th>
+
+                                <th>
+                                    Rencana Kembali
+                                </th>
+
+                                <th>
+                                    Bagian
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Keterangan
+                                </th>
+
+                                <th>
+                                    Aksi
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="loanTableBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =================================================
+             AKUN
+        ================================================== -->
+
+        <section
+            class="page content-page hidden"
+            data-section="accounts"
+            data-admin-only
+        >
+
+            <div class="section-card">
+
+                <div class="section-header">
+
+                    <div>
+
+                        <h2>
+                            Manajemen Akun
+                        </h2>
+
+                        <p>
+                            Kelola akun pengguna HISADA
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div class="table-wrapper">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Nama
+                                </th>
+
+                                <th>
+                                    Username
+                                </th>
+
+                                <th>
+                                    Bagian
+                                </th>
+
+                                <th>
+                                    Role
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Tanggal Daftar
+                                </th>
+
+                                <th>
+                                    Aksi
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody id="accountsTableBody">
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+</section>
+
+
+<!-- =====================================================
+     MODAL INVENTARIS
+====================================================== -->
+
+<div
+    id="itemModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Tambah / Edit Barang
+                </h2>
+
+                <p>
+                    Masukkan jumlah berdasarkan kondisi barang
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                id="closeItemModal"
+                class="modal-close"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="itemForm">
+
+            <div class="form-grid">
+
+                <div class="form-group full">
+
+                    <label for="itemName">
+                        Nama Barang
+                    </label>
+
+                    <input
+                        type="text"
+                        id="itemName"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group full">
+
+                    <label for="itemDepartment">
+                        Bagian
+                    </label>
+
+                    <select
+                        id="itemDepartment"
+                        data-departments
+                        required
+                    >
+                        <option value="">
+                            Pilih Bagian
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemGood">
+                        Baik
+                    </label>
+
+                    <input
+                        type="number"
+                        id="itemGood"
+                        min="0"
+                        value="0"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemFair">
+                        Kurang Baik
+                    </label>
+
+                    <input
+                        type="number"
+                        id="itemFair"
+                        min="0"
+                        value="0"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemBad">
+                        Rusak Berat
+                    </label>
+
+                    <input
+                        type="number"
+                        id="itemBad"
+                        min="0"
+                        value="0"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemLost">
+                        Hilang
+                    </label>
+
+                    <input
+                        type="number"
+                        id="itemLost"
+                        min="0"
+                        value="0"
+                    >
+
+                </div>
+
+
+                <div class="form-group full">
+
+                    <label for="itemDescription">
+                        Keterangan
+                    </label>
+
+                    <textarea
+                        id="itemDescription"
+                        rows="4"
+                        placeholder="Keterangan tambahan..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="cancelItemButton"
+                    class="secondary-btn"
+                    onclick="closeItemModal()"
+                >
+                    Batal
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="primary-btn"
+                >
+                    Simpan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     MODAL PEMINJAMAN
+====================================================== -->
+
+<div
+    id="loanModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2>
+                    Tambah / Edit Peminjaman
+                </h2>
+
+                <p>
+                    Masukkan data peminjaman barang
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                id="closeLoanModal"
+                class="modal-close"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="loanForm">
+
+            <div class="form-grid">
+
+                <div class="form-group full">
+
+                    <label for="loanItemName">
+                        Nama Barang
+                    </label>
+
+                    <input
+                        type="text"
+                        id="loanItemName"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanQuantity">
+                        Jumlah
+                    </label>
+
+                    <input
+                        type="number"
+                        id="loanQuantity"
+                        min="1"
+                        value="1"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanBorrower">
+                        Peminjam
+                    </label>
+
+                    <input
+                        type="text"
+                        id="loanBorrower"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanBorrowDate">
+                        Tanggal Pinjam
+                    </label>
+
+                    <input
+                        type="date"
+                        id="loanBorrowDate"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanReturnPlan">
+                        Rencana Kembali
+                    </label>
+
+                    <input
+                        type="date"
+                        id="loanReturnPlan"
+                    >
+
+                </div>
+
+
+                <div class="form-group full">
+
+                    <label for="loanDepartment">
+                        Bagian
+                    </label>
+
+                    <select
+                        id="loanDepartment"
+                        data-departments
+                        required
+                    >
+                        <option value="">
+                            Pilih Bagian
+                        </option>
+                    </select>
+
+                </div>
+
+
+                <div class="form-group full">
+
+                    <label for="loanNote">
+                        Keterangan
+                    </label>
+
+                    <textarea
+                        id="loanNote"
+                        rows="4"
+                        placeholder="Keterangan tambahan..."
+                    ></textarea>
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    id="cancelLoanButton"
+                    class="secondary-btn"
+                    onclick="closeLoanModal()"
+                >
+                    Batal
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="primary-btn"
+                >
+                    Simpan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<script src="script.js"></script>
 
 </body>
 </html>
