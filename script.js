@@ -1,2116 +1,2125 @@
-/* =====================================================
-   HISADA INVENTARIS
-   Prototype Front-End
-===================================================== */
-
-
-/* =====================================================
-   KONFIGURASI
-===================================================== */
+/* =========================================================
+   HISADA INVENTARIS V4
+   ========================================================= */
 
 const DEPTS = [
-    "Logistik",
-    "Bahasa",
-    "Kesehatan",
-    "Ta'mir Masjid",
-    "Keamanan",
-    "Pramuka",
-    "Olahraga",
-    "Dewan Harian",
-    "Dapur",
-    "Kesenian"
+  "Logistik",
+  "Bahasa",
+  "Kesehatan",
+  "Ta'mir Masjid",
+  "Keamanan",
+  "Pramuka",
+  "Olahraga",
+  "Dewan Harian",
+  "Dapur",
+  "Kesenian"
 ];
 
-
-/*
-    ADMIN DEMO
-
-    PERINGATAN:
-    Jangan gunakan cara ini untuk sistem produksi.
-    Password terlihat di source code.
-*/
-
 const ADMIN = {
-    username: "216416",
-    password: "Amarullah060308",
-    name: "Admin HISADA",
-    role: "admin",
-    status: "approved"
+  username: "216416",
+  password: "Amarullah060308",
+  name: "Admin HISADA",
+  role: "admin",
+  status: "approved"
 };
 
-
-/* =====================================================
-   LOCAL STORAGE
-===================================================== */
-
-const USERS_KEY = "hisada_users_v3";
-const ITEMS_KEY = "hisada_items_v3";
-const SESSION_KEY = "hisada_session_v3";
-
-
-function getUsers() {
-
-    return JSON.parse(
-        localStorage.getItem(USERS_KEY) || "[]"
-    );
-
-}
-
-
-function saveUsers(users) {
-
-    localStorage.setItem(
-        USERS_KEY,
-        JSON.stringify(users)
-    );
-
-}
-
-
-function getItems() {
-
-    return JSON.parse(
-        localStorage.getItem(ITEMS_KEY) || "[]"
-    );
-
-}
-
-
-function saveItems(items) {
-
-    localStorage.setItem(
-        ITEMS_KEY,
-        JSON.stringify(items)
-    );
-
-}
-
-
-/* =====================================================
-   SESSION
-===================================================== */
+const USERS_KEY = "hisada_users_v4";
+const ITEMS_KEY = "hisada_items_v4";
+const LOANS_KEY = "hisada_loans_v4";
+const SESSION_KEY = "hisada_session_v4";
 
 let currentUser = null;
 
 
-function saveSession(user) {
+/* =========================================================
+   UTILITAS
+   ========================================================= */
 
-    localStorage.setItem(
-        SESSION_KEY,
-        JSON.stringify(user)
+const $ = id => document.getElementById(id);
+
+const esc = value =>
+  String(value ?? "").replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  }[char]));
+
+const read = (key, defaultValue = []) => {
+  try {
+    return JSON.parse(
+      localStorage.getItem(key) ||
+      JSON.stringify(defaultValue)
+    );
+  } catch {
+    return defaultValue;
+  }
+};
+
+const write = (key, value) =>
+  localStorage.setItem(key, JSON.stringify(value));
+
+const users = () => read(USERS_KEY);
+const items = () => read(ITEMS_KEY);
+const loans = () => read(LOANS_KEY);
+
+const saveUsers = value => write(USERS_KEY, value);
+const saveItems = value => write(ITEMS_KEY, value);
+const saveLoans = value => write(LOANS_KEY, value);
+
+const isAdmin = () =>
+  currentUser?.role === "admin";
+
+const visibleDept = () =>
+  isAdmin() ? null : currentUser?.department;
+
+
+/* =========================================================
+   FILTER DATA SESUAI BAGIAN
+   ========================================================= */
+
+function visibleItems() {
+  const data = items();
+
+  if (isAdmin()) {
+    return data;
+  }
+
+  return data.filter(
+    item => item.department === visibleDept()
+  );
+}
+
+function visibleLoans() {
+  const data = loans();
+
+  if (isAdmin()) {
+    return data;
+  }
+
+  return data.filter(
+    loan => loan.department === visibleDept()
+  );
+}
+
+
+/* =========================================================
+   TOTAL BARANG
+   ========================================================= */
+
+function total(item) {
+  return [
+    "good",
+    "fair",
+    "bad",
+    "lost"
+  ].reduce(
+    (sum, key) => sum + (Number(item[key]) || 0),
+    0
+  );
+}
+
+
+/* =========================================================
+   NOMOR OTOMATIS BARANG
+   ========================================================= */
+
+function deptCode(department) {
+
+  if (department === "Ta'mir Masjid") {
+    return "TAM";
+  }
+
+  return department
+    .split(/\s+/)
+    .map(word => word[0])
+    .join("")
+    .slice(0, 3)
+    .toUpperCase();
+}
+
+
+function nextNumber(department, data = items()) {
+
+  const prefix = deptCode(department) + "-";
+
+  const numbers = data
+    .filter(item => item.department === department)
+    .map(item =>
+      Number(
+        String(item.number || "")
+          .replace(prefix, "")
+      ) || 0
     );
 
+  const next =
+    Math.max(0, ...numbers) + 1;
+
+  return (
+    prefix +
+    String(next).padStart(3, "0")
+  );
 }
 
 
-function loadSession() {
+/* =========================================================
+   NOMOR PEMINJAMAN OTOMATIS
+   ========================================================= */
 
-    const session =
-        localStorage.getItem(SESSION_KEY);
+function nextLoan() {
 
-    if (!session) return null;
+  const numbers = loans()
+    .map(loan =>
+      Number(
+        String(loan.id || "")
+          .replace("PJM-", "")
+      ) || 0
+    );
 
-    return JSON.parse(session);
+  const next =
+    Math.max(0, ...numbers) + 1;
 
+  return (
+    "PJM-" +
+    String(next).padStart(3, "0")
+  );
 }
 
 
-/* =====================================================
-   INITIALIZATION
-===================================================== */
+/* =========================================================
+   SAAT HALAMAN DIMUAT
+   ========================================================= */
 
 document.addEventListener(
-    "DOMContentLoaded",
-    () => {
+  "DOMContentLoaded",
+  () => {
 
-        populateDepartmentSelects();
+    populateSelects();
+    bindEvents();
 
-        setupEvents();
+    const session =
+      read(SESSION_KEY, null);
 
-        const session = loadSession();
+    if (session) {
 
-        if (session) {
+      currentUser = session;
+      startApp();
 
-            currentUser = session;
+    } else {
 
-            startApp();
-
-        } else {
-
-            showAuthPage();
-
-        }
-
+      showAuthPage();
     }
+  }
 );
 
 
-/* =====================================================
-   POPULATE BAGIAN
-===================================================== */
+/* =========================================================
+   ISI SELECT BAGIAN
+   ========================================================= */
 
-function populateDepartmentSelects() {
+function populateSelects() {
 
-    const signDept =
-        document.getElementById("signDept");
+  [
+    "signDept",
+    "itemDepartment",
+    "loanDepartment",
+    "departmentFilter"
+  ].forEach(id => {
 
-    const itemDept =
-        document.getElementById("itemDepartment");
+    const element = $(id);
 
-    const departmentFilter =
-        document.getElementById("departmentFilter");
+    if (!element) {
+      return;
+    }
 
+    DEPTS.forEach(department => {
 
-    DEPTS.forEach(dept => {
+      const option =
+        document.createElement("option");
 
-        const option1 =
-            document.createElement("option");
+      option.value = department;
+      option.textContent = department;
 
-        option1.value = dept;
-        option1.textContent = dept;
-
-        signDept.appendChild(option1);
-
-
-        const option2 =
-            document.createElement("option");
-
-        option2.value = dept;
-        option2.textContent = dept;
-
-        itemDept.appendChild(option2);
-
-
-        const option3 =
-            document.createElement("option");
-
-        option3.value = dept;
-        option3.textContent = dept;
-
-        departmentFilter.appendChild(option3);
-
+      element.appendChild(option);
     });
+  });
 
+  const filter =
+    $("departmentFilter");
+
+  if (
+    filter &&
+    !filter.querySelector(
+      'option[value="all"]'
+    )
+  ) {
+
+    const option =
+      document.createElement("option");
+
+    option.value = "all";
+    option.textContent = "Semua Bagian";
+
+    filter.insertBefore(
+      option,
+      filter.firstChild
+    );
+  }
 }
 
 
-/* =====================================================
-   EVENTS
-===================================================== */
+/* =========================================================
+   EVENT
+   ========================================================= */
 
-function setupEvents() {
+function bindEvents() {
 
-    document
-        .getElementById("loginForm")
-        .addEventListener(
-            "submit",
-            login
-        );
+  $("loginForm")?.addEventListener(
+    "submit",
+    login
+  );
 
+  $("signupForm")?.addEventListener(
+    "submit",
+    signup
+  );
 
-    document
-        .getElementById("signupForm")
-        .addEventListener(
-            "submit",
-            signup
-        );
+  $("itemForm")?.addEventListener(
+    "submit",
+    saveItem
+  );
 
+  $("loanForm")?.addEventListener(
+    "submit",
+    saveLoan
+  );
 
-    document
-        .getElementById("itemForm")
-        .addEventListener(
-            "submit",
-            saveItem
-        );
-
+  $("loanDepartment")?.addEventListener(
+    "change",
+    populateLoanItems
+  );
 }
 
 
-/* =====================================================
-   AUTH TAB
-===================================================== */
+/* =========================================================
+   LOGIN / SIGN UP
+   ========================================================= */
 
 function showAuth(type) {
 
-    const loginForm =
-        document.getElementById("loginForm");
+  $("loginForm")?.classList.toggle(
+    "hidden",
+    type !== "login"
+  );
 
-    const signupForm =
-        document.getElementById("signupForm");
+  $("signupForm")?.classList.toggle(
+    "hidden",
+    type !== "signup"
+  );
 
-    const loginTab =
-        document.getElementById("loginTab");
+  $("loginTab")?.classList.toggle(
+    "active",
+    type === "login"
+  );
 
-    const signupTab =
-        document.getElementById("signupTab");
-
-
-    if (type === "login") {
-
-        loginForm.classList.remove("hidden");
-        signupForm.classList.add("hidden");
-
-        loginTab.classList.add("active");
-        signupTab.classList.remove("active");
-
-    } else {
-
-        loginForm.classList.add("hidden");
-        signupForm.classList.remove("hidden");
-
-        loginTab.classList.remove("active");
-        signupTab.classList.add("active");
-
-    }
-
+  $("signupTab")?.classList.toggle(
+    "active",
+    type === "signup"
+  );
 }
 
-
-/* =====================================================
-   LOGIN
-===================================================== */
-
-function login(event) {
-
-    event.preventDefault();
-
-
-    const username =
-        document
-            .getElementById("loginUser")
-            .value
-            .trim();
-
-
-    const password =
-        document
-            .getElementById("loginPass")
-            .value;
-
-
-    const message =
-        document.getElementById(
-            "loginMessage"
-        );
-
-
-    /* ADMIN */
-
-    if (
-        username === ADMIN.username &&
-        password === ADMIN.password
-    ) {
-
-        currentUser = {
-            ...ADMIN
-        };
-
-        saveSession(currentUser);
-
-        startApp();
-
-        return;
-
-    }
-
-
-    /* USER */
-
-    const users = getUsers();
-
-    const user =
-        users.find(
-            u =>
-                u.username === username
-        );
-
-
-    if (!user) {
-
-        message.textContent =
-            "Username atau password salah.";
-
-        return;
-
-    }
-
-
-    if (user.password !== password) {
-
-        message.textContent =
-            "Username atau password salah.";
-
-        return;
-
-    }
-
-
-    if (user.status !== "approved") {
-
-        message.textContent =
-            "Akun masih menunggu persetujuan Admin.";
-
-        return;
-
-    }
-
-
-    currentUser = user;
-
-    saveSession(currentUser);
-
-    startApp();
-
-}
-
-
-/* =====================================================
-   SIGN UP
-===================================================== */
-
-function signup(event) {
-
-    event.preventDefault();
-
-
-    const name =
-        document
-            .getElementById("signName")
-            .value
-            .trim();
-
-
-    const username =
-        document
-            .getElementById("signUser")
-            .value
-            .trim();
-
-
-    const password =
-        document
-            .getElementById("signPass")
-            .value;
-
-
-    const department =
-        document
-            .getElementById("signDept")
-            .value;
-
-
-    const message =
-        document.getElementById(
-            "signupMessage"
-        );
-
-
-    if (!name || !username || !password || !department) {
-
-        message.textContent =
-            "Semua data wajib diisi.";
-
-        return;
-
-    }
-
-
-    /* ADMIN TIDAK BOLEH DIBUAT */
-
-    if (username === ADMIN.username) {
-
-        message.textContent =
-            "Username tersebut tidak dapat digunakan.";
-
-        return;
-
-    }
-
-
-    const users = getUsers();
-
-
-    /* CEK USERNAME */
-
-    const exists =
-        users.some(
-            u =>
-                u.username.toLowerCase() ===
-                username.toLowerCase()
-        );
-
-
-    if (exists) {
-
-        message.textContent =
-            "Username sudah digunakan.";
-
-        return;
-
-    }
-
-
-    /*
-        ROLE:
-
-        Dewan Harian
-        -> dewan
-
-        Bagian lain
-        -> bagian
-    */
-
-    const role =
-        department === "Dewan Harian"
-            ? "dewan"
-            : "bagian";
-
-
-    const newUser = {
-
-        id: crypto.randomUUID(),
-
-        name,
-
-        username,
-
-        password,
-
-        department,
-
-        role,
-
-        status: "pending",
-
-        createdAt:
-            new Date().toISOString()
-
-    };
-
-
-    users.push(newUser);
-
-    saveUsers(users);
-
-
-    message.textContent =
-        "Pendaftaran berhasil. Tunggu persetujuan Admin.";
-
-
-    document
-        .getElementById("signupForm")
-        .reset();
-
-}
-
-
-/* =====================================================
-   START APP
-===================================================== */
-
-function startApp() {
-
-    document
-        .getElementById("authPage")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("appPage")
-        .classList.remove("hidden");
-
-
-    updateUserUI();
-
-    setupPermissions();
-
-    showPage("dashboard");
-
-}
-
-
-/* =====================================================
-   SHOW AUTH
-===================================================== */
 
 function showAuthPage() {
 
-    document
-        .getElementById("authPage")
-        .classList.remove("hidden");
+  $("authPage")?.classList.remove(
+    "hidden"
+  );
 
-
-    document
-        .getElementById("appPage")
-        .classList.add("hidden");
-
+  $("appPage")?.classList.add(
+    "hidden"
+  );
 }
 
 
-/* =====================================================
+/* =========================================================
+   LOGIN
+   ========================================================= */
+
+function login(event) {
+
+  event.preventDefault();
+
+  const username =
+    $("loginUser").value.trim();
+
+  const password =
+    $("loginPass").value;
+
+  const message =
+    $("loginMessage");
+
+
+  /* ADMIN */
+
+  if (
+    username === ADMIN.username &&
+    password === ADMIN.password
+  ) {
+
+    currentUser = {
+      ...ADMIN
+    };
+
+    write(
+      SESSION_KEY,
+      currentUser
+    );
+
+    startApp();
+
+    return;
+  }
+
+
+  /* USER BIASA */
+
+  const user =
+    users().find(
+      item => item.username === username
+    );
+
+
+  if (
+    !user ||
+    user.password !== password
+  ) {
+
+    message.textContent =
+      "Username atau password salah.";
+
+    return;
+  }
+
+
+  if (
+    user.status !== "approved"
+  ) {
+
+    message.textContent =
+      "Akun masih menunggu persetujuan Admin.";
+
+    return;
+  }
+
+
+  currentUser = user;
+
+  write(
+    SESSION_KEY,
+    currentUser
+  );
+
+  startApp();
+}
+
+
+/* =========================================================
+   SIGN UP
+   ========================================================= */
+
+function signup(event) {
+
+  event.preventDefault();
+
+  const name =
+    $("signName").value.trim();
+
+  const username =
+    $("signUser").value.trim();
+
+  const password =
+    $("signPass").value;
+
+  const department =
+    $("signDept").value;
+
+  const message =
+    $("signupMessage");
+
+
+  if (
+    !name ||
+    !username ||
+    !password ||
+    !department
+  ) {
+
+    message.textContent =
+      "Semua data wajib diisi.";
+
+    return;
+  }
+
+
+  if (
+    username === ADMIN.username ||
+    users().some(
+      user =>
+        user.username.toLowerCase() ===
+        username.toLowerCase()
+    )
+  ) {
+
+    message.textContent =
+      "Username sudah digunakan.";
+
+    return;
+  }
+
+
+  const newUser = {
+
+    id: crypto.randomUUID(),
+
+    name,
+
+    username,
+
+    password,
+
+    department,
+
+    role: "bagian",
+
+    status: "pending",
+
+    createdAt:
+      new Date().toISOString()
+  };
+
+
+  const data = users();
+
+  data.push(newUser);
+
+  saveUsers(data);
+
+
+  message.textContent =
+    "Pendaftaran berhasil. Tunggu persetujuan Admin.";
+
+  event.target.reset();
+}
+
+
+/* =========================================================
+   MULAI APLIKASI
+   ========================================================= */
+
+function startApp() {
+
+  $("authPage").classList.add(
+    "hidden"
+  );
+
+  $("appPage").classList.remove(
+    "hidden"
+  );
+
+  updateUserUI();
+
+  setupPermissions();
+
+  showPage("dashboard");
+}
+
+
+/* =========================================================
    LOGOUT
-===================================================== */
+   ========================================================= */
 
 function logout() {
 
-    currentUser = null;
+  currentUser = null;
 
-    localStorage.removeItem(
-        SESSION_KEY
-    );
+  localStorage.removeItem(
+    SESSION_KEY
+  );
 
-    showAuthPage();
-
+  showAuthPage();
 }
 
 
-/* =====================================================
+/* =========================================================
    USER UI
-===================================================== */
+   ========================================================= */
 
 function updateUserUI() {
 
-    document
-        .getElementById("sidebarUserName")
-        .textContent =
+  [
+    "sidebarUserName",
+    "topbarUser",
+    "welcomeName"
+  ].forEach(id => {
+
+    if ($(id)) {
+      $(id).textContent =
         currentUser.name;
-
-
-    document
-        .getElementById("topbarUser")
-        .textContent =
-        currentUser.name;
-
-
-    document
-        .getElementById("welcomeName")
-        .textContent =
-        currentUser.name;
-
-
-    let roleText = "";
-
-
-    if (currentUser.role === "admin") {
-
-        roleText = "Administrator";
-
-    } else if (currentUser.role === "dewan") {
-
-        roleText =
-            "Dewan Harian";
-
-    } else {
-
-        roleText =
-            currentUser.department;
-
     }
+  });
 
 
-    document
-        .getElementById("sidebarUserRole")
-        .textContent =
-        roleText;
+  if ($("sidebarUserRole")) {
 
+    $("sidebarUserRole").textContent =
+      isAdmin()
+        ? "Administrator"
+        : currentUser.department;
+  }
 }
 
 
-/* =====================================================
+/* =========================================================
    PERMISSION
-===================================================== */
+   ========================================================= */
 
 function setupPermissions() {
 
-    const adminButtons =
-        document.querySelectorAll(
-            ".admin-only"
-        );
+  document
+    .querySelectorAll(".admin-only")
+    .forEach(element => {
+
+      element.classList.toggle(
+        "hidden",
+        !isAdmin()
+      );
+    });
 
 
-    /*
-        Hanya Admin yang melihat
-        menu Akun.
-    */
+  if ($("itemDepartment")) {
 
-    adminButtons.forEach(
-        button => {
+    $("itemDepartment").disabled =
+      !isAdmin();
 
-            if (
-                currentUser.role === "admin"
-            ) {
+    if (!isAdmin()) {
 
-                button.classList.remove(
-                    "hidden"
-                );
-
-            } else {
-
-                button.classList.add(
-                    "hidden"
-                );
-
-            }
-
-        }
-    );
-
-
-    setupDepartmentAccess();
-
-}
-
-
-/* =====================================================
-   DEPARTMENT ACCESS
-===================================================== */
-
-function setupDepartmentAccess() {
-
-    const itemDepartment =
-        document.getElementById(
-            "itemDepartment"
-        );
-
-
-    /*
-        Admin:
-        bebas memilih bagian.
-    */
-
-    if (currentUser.role === "admin") {
-
-        itemDepartment.disabled = false;
-
-        return;
-
-    }
-
-
-    /*
-        Dewan:
-        boleh melihat seluruh data,
-        tetapi ketika menambah barang,
-        tidak boleh memasukkan barang
-        ke bagian lain.
-    */
-
-    if (currentUser.role === "dewan") {
-
-        itemDepartment.disabled = true;
-
-        return;
-
-    }
-
-
-    /*
-        User bagian:
-        hanya bagian sendiri.
-    */
-
-    itemDepartment.value =
+      $("itemDepartment").value =
         currentUser.department;
+    }
+  }
 
-    itemDepartment.disabled = true;
 
+  if ($("loanDepartment")) {
+
+    $("loanDepartment").disabled =
+      !isAdmin();
+
+    if (!isAdmin()) {
+
+      $("loanDepartment").value =
+        currentUser.department;
+    }
+  }
 }
 
 
-/* =====================================================
-   PAGE NAVIGATION
-===================================================== */
+/* =========================================================
+   NAVIGASI HALAMAN
+   ========================================================= */
 
 function showPage(page) {
 
-    const pages = [
-        "dashboard",
-        "inventory",
-        "accounts"
-    ];
+  [
+    "dashboard",
+    "inventory",
+    "loans",
+    "accounts"
+  ].forEach(name => {
+
+    $(name + "Page")
+      ?.classList.toggle(
+        "hidden",
+        name !== page
+      );
+  });
 
 
-    pages.forEach(
-        name => {
+  document
+    .querySelectorAll(".nav-item")
+    .forEach(element => {
 
-            const element =
-                document.getElementById(
-                    name + "Page"
-                );
-
-            if (!element) return;
-
-
-            if (name === page) {
-
-                element.classList.remove(
-                    "hidden"
-                );
-
-            } else {
-
-                element.classList.add(
-                    "hidden"
-                );
-
-            }
-
-        }
-    );
+      element.classList.toggle(
+        "active",
+        element.dataset.page === page
+      );
+    });
 
 
-    document
-        .querySelectorAll(".nav-item")
-        .forEach(
-            button => {
+  const titles = {
 
-                button.classList.toggle(
-                    "active",
-                    button.dataset.page === page
-                );
+    dashboard: [
+      "Dashboard",
+      "Ringkasan inventaris HISADA"
+    ],
 
-            }
-        );
+    inventory: [
+      "Inventaris",
+      "Kelola data barang inventaris"
+    ],
 
+    loans: [
+      "Peminjaman",
+      "Data peminjaman barang"
+    ],
 
-    const titles = {
-
-        dashboard: [
-            "Dashboard",
-            "Ringkasan inventaris HISADA"
-        ],
-
-        inventory: [
-            "Inventaris",
-            "Kelola data barang inventaris"
-        ],
-
-        accounts: [
-            "Akun",
-            "Manajemen akun pengguna"
-        ]
-
-    };
+    accounts: [
+      "Akun",
+      "Manajemen akun pengguna"
+    ]
+  };
 
 
-    document
-        .getElementById("pageTitle")
-        .textContent =
-        titles[page][0];
+  const title =
+    titles[page] || ["", ""];
 
 
-    document
-        .getElementById("pageSubtitle")
-        .textContent =
-        titles[page][1];
+  if ($("pageTitle")) {
+    $("pageTitle").textContent =
+      title[0];
+  }
 
 
-    if (page === "dashboard") {
-
-        renderDashboard();
-
-    }
-
-
-    if (page === "inventory") {
-
-        renderInventory();
-
-    }
+  if ($("pageSubtitle")) {
+    $("pageSubtitle").textContent =
+      title[1];
+  }
 
 
-    if (page === "accounts") {
+  if (page === "dashboard") {
+    renderDashboard();
+  }
 
-        if (
-            currentUser.role !== "admin"
-        ) {
 
-            showPage("dashboard");
+  if (page === "inventory") {
+    renderInventory();
+  }
 
-            return;
 
-        }
+  if (page === "loans") {
 
-        renderAccounts();
+    populateLoanItems();
 
-    }
+    renderLoans();
+  }
 
+
+  if (
+    page === "accounts" &&
+    isAdmin()
+  ) {
+
+    renderAccounts();
+  }
 }
 
 
-/* =====================================================
-   GET VISIBLE ITEMS
-===================================================== */
-
-function getVisibleItems() {
-
-    const items = getItems();
-
-
-    /*
-        ADMIN:
-        lihat semua.
-    */
-
-    if (
-        currentUser.role === "admin"
-    ) {
-
-        return items;
-
-    }
-
-
-    /*
-        DEWAN:
-        lihat semua.
-    */
-
-    if (
-        currentUser.role === "dewan"
-    ) {
-
-        return items;
-
-    }
-
-
-    /*
-        BAGIAN:
-        hanya bagian sendiri.
-    */
-
-    return items.filter(
-        item =>
-            item.department ===
-            currentUser.department
-    );
-
-}
-
-
-/* =====================================================
+/* =========================================================
    DASHBOARD
-===================================================== */
+   ========================================================= */
 
 function renderDashboard() {
 
-    const items =
-        getVisibleItems();
+  const data =
+    visibleItems();
 
 
-    let good = 0;
-    let fair = 0;
-    let bad = 0;
-    let lost = 0;
-    let total = 0;
+  const stats = {
+
+    good: 0,
+
+    fair: 0,
+
+    bad: 0,
+
+    lost: 0,
+
+    total: 0
+  };
 
 
-    items.forEach(item => {
+  data.forEach(item => {
 
-        const quantity =
-            Number(item.quantity) || 0;
+    stats.good +=
+      Number(item.good) || 0;
+
+    stats.fair +=
+      Number(item.fair) || 0;
+
+    stats.bad +=
+      Number(item.bad) || 0;
+
+    stats.lost +=
+      Number(item.lost) || 0;
+  });
 
 
-        total += quantity;
+  stats.total =
+    stats.good +
+    stats.fair +
+    stats.bad +
+    stats.lost;
 
 
-        if (item.condition === "Baik") {
+  [
+    "good",
+    "fair",
+    "bad",
+    "lost",
+    "total"
+  ].forEach(key => {
 
-            good += quantity;
+    const element =
+      $(
+        "stat" +
+        key[0].toUpperCase() +
+        key.slice(1)
+      );
 
-        } else if (
-            item.condition === "Kurang Baik"
-        ) {
+    if (element) {
+      element.textContent =
+        stats[key];
+    }
+  });
 
-            fair += quantity;
 
-        } else if (
-            item.condition === "Rusak Berat"
-        ) {
+  const container =
+    $("departmentSummary");
 
-            bad += quantity;
+  if (!container) {
+    return;
+  }
 
-        } else if (
-            item.condition === "Hilang"
-        ) {
 
-            lost += quantity;
+  container.innerHTML = "";
 
-        }
 
+  const departments =
+    isAdmin()
+      ? DEPTS
+      : [currentUser.department];
+
+
+  departments.forEach(department => {
+
+    const departmentItems =
+      data.filter(
+        item =>
+          item.department === department
+      );
+
+
+    const result = {
+
+      good: 0,
+
+      fair: 0,
+
+      bad: 0,
+
+      lost: 0
+    };
+
+
+    departmentItems.forEach(item => {
+
+      result.good +=
+        Number(item.good) || 0;
+
+      result.fair +=
+        Number(item.fair) || 0;
+
+      result.bad +=
+        Number(item.bad) || 0;
+
+      result.lost +=
+        Number(item.lost) || 0;
     });
 
 
-    document
-        .getElementById("statGood")
-        .textContent =
-        good;
+    const departmentTotal =
+      result.good +
+      result.fair +
+      result.bad +
+      result.lost;
 
 
-    document
-        .getElementById("statFair")
-        .textContent =
-        fair;
+    container.insertAdjacentHTML(
+      "beforeend",
 
+      `
+      <div class="department-card">
 
-    document
-        .getElementById("statBad")
-        .textContent =
-        bad;
+        <strong>
+          ${esc(department)}
+        </strong>
 
+        <span>
+          Total ${departmentTotal} unit
+        </span>
 
-    document
-        .getElementById("statLost")
-        .textContent =
-        lost;
+        <small>
+          Baik ${result.good}
+          · Kurang ${result.fair}
+          · Rusak ${result.bad}
+          · Hilang ${result.lost}
+        </small>
 
-
-    document
-        .getElementById("statTotal")
-        .textContent =
-        total;
-
-
-    renderDepartmentSummary();
-
+      </div>
+      `
+    );
+  });
 }
 
 
-/* =====================================================
-   DEPARTMENT SUMMARY
-===================================================== */
-
-function renderDepartmentSummary() {
-
-    const container =
-        document.getElementById(
-            "departmentSummary"
-        );
-
-
-    container.innerHTML = "";
-
-
-    const items =
-        getVisibleItems();
-
-
-    DEPTS.forEach(dept => {
-
-        const deptItems =
-            items.filter(
-                item =>
-                    item.department === dept
-            );
-
-
-        const total =
-            deptItems.reduce(
-                (
-                    sum,
-                    item
-                ) =>
-                    sum +
-                    Number(item.quantity || 0),
-                0
-            );
-
-
-        /*
-            Untuk user bagian,
-            cukup tampilkan bagian sendiri.
-        */
-
-        if (
-            currentUser.role === "bagian" &&
-            dept !== currentUser.department
-        ) {
-
-            return;
-
-        }
-
-
-        const card =
-            document.createElement(
-                "div"
-            );
-
-
-        card.className =
-            "department-card";
-
-
-        card.innerHTML = `
-            <strong>${escapeHTML(dept)}</strong>
-            <span>${total} unit barang</span>
-        `;
-
-
-        container.appendChild(card);
-
-    });
-
-}
-
-
-/* =====================================================
-   INVENTORY
-===================================================== */
+/* =========================================================
+   INVENTARIS
+   ========================================================= */
 
 function renderInventory() {
 
-    const body =
-        document.getElementById(
-            "inventoryBody"
-        );
+  let data =
+    visibleItems();
 
 
-    const search =
-        document
-            .getElementById("searchInput")
-            .value
-            .toLowerCase()
-            .trim();
+  const search =
+    (
+      $("searchInput")?.value ||
+      ""
+    )
+      .toLowerCase()
+      .trim();
 
 
-    const condition =
-        document
-            .getElementById("conditionFilter")
-            .value;
+  const department =
+    $("departmentFilter")?.value ||
+    "all";
 
 
-    const department =
-        document
-            .getElementById("departmentFilter")
-            .value;
+  if (search) {
 
+    data = data.filter(item =>
 
-    let items =
-        getVisibleItems();
+      item.name
+        .toLowerCase()
+        .includes(search) ||
 
-
-    /* SEARCH */
-
-    if (search) {
-
-        items =
-            items.filter(
-                item =>
-                    item.name
-                        .toLowerCase()
-                        .includes(search)
-            );
-
-    }
-
-
-    /* CONDITION */
-
-    if (condition !== "all") {
-
-        items =
-            items.filter(
-                item =>
-                    item.condition === condition
-            );
-
-    }
-
-
-    /*
-        Department filter:
-        hanya admin/dewan.
-    */
-
-    if (
-        department !== "all" &&
-        (
-            currentUser.role === "admin" ||
-            currentUser.role === "dewan"
-        )
-    ) {
-
-        items =
-            items.filter(
-                item =>
-                    item.department === department
-            );
-
-    }
-
-
-    body.innerHTML = "";
-
-
-    if (items.length === 0) {
-
-        body.innerHTML = `
-            <tr>
-                <td colspan="7"
-                    style="text-align:center;padding:30px;">
-                    Belum ada data inventaris.
-                </td>
-            </tr>
-        `;
-
-        return;
-
-    }
-
-
-    items.forEach(item => {
-
-        const row =
-            document.createElement("tr");
-
-
-        const badgeClass =
-            getConditionBadge(item.condition);
-
-
-        row.innerHTML = `
-
-            <td>
-                <strong>
-                    ${escapeHTML(item.number)}
-                </strong>
-            </td>
-
-            <td>
-                ${escapeHTML(item.department)}
-            </td>
-
-            <td>
-                ${escapeHTML(item.name)}
-            </td>
-
-            <td>
-                ${Number(item.quantity)}
-            </td>
-
-            <td>
-                <span class="badge ${badgeClass}">
-                    ${escapeHTML(item.condition)}
-                </span>
-            </td>
-
-            <td>
-                ${escapeHTML(
-                    item.description || "-"
-                )}
-            </td>
-
-            <td>
-
-                <div class="action-group">
-
-                    ${canEditItem(item)
-                        ? `
-                            <button
-                                class="small-btn edit-btn"
-                                onclick="openEditItem('${item.id}')">
-                                Edit
-                            </button>
-                        `
-                        : ""
-                    }
-
-                    ${canEditItem(item)
-                        ? `
-                            <button
-                                class="small-btn delete-btn"
-                                onclick="deleteItem('${item.id}')">
-                                Hapus
-                            </button>
-                        `
-                        : ""
-                    }
-
-                </div>
-
-            </td>
-        `;
-
-
-        body.appendChild(row);
-
-    });
-
-}
-
-
-/* =====================================================
-   CAN EDIT ITEM
-===================================================== */
-
-function canEditItem(item) {
-
-    if (
-        currentUser.role === "admin"
-    ) {
-
-        return true;
-
-    }
-
-
-    /*
-        Dewan hanya melihat.
-    */
-
-    if (
-        currentUser.role === "dewan"
-    ) {
-
-        return false;
-
-    }
-
-
-    return (
-        item.department ===
-        currentUser.department
+      item.number
+        .toLowerCase()
+        .includes(search)
     );
+  }
 
+
+  if (
+    isAdmin() &&
+    department !== "all"
+  ) {
+
+    data =
+      data.filter(
+        item =>
+          item.department === department
+      );
+  }
+
+
+  const body =
+    $("inventoryBody");
+
+  if (!body) {
+    return;
+  }
+
+
+  if (!data.length) {
+
+    body.innerHTML = `
+      <tr>
+        <td
+          colspan="10"
+          class="empty-cell"
+        >
+          Belum ada data inventaris.
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+
+  body.innerHTML =
+    data.map(item => `
+
+      <tr>
+
+        <td>
+          <b>
+            ${esc(item.number)}
+          </b>
+        </td>
+
+        <td>
+          ${esc(item.department)}
+        </td>
+
+        <td>
+          ${esc(item.name)}
+        </td>
+
+        <td>
+          <b>
+            ${total(item)}
+          </b>
+        </td>
+
+        <td>
+          ${item.good || 0}
+        </td>
+
+        <td>
+          ${item.fair || 0}
+        </td>
+
+        <td>
+          ${item.bad || 0}
+        </td>
+
+        <td>
+          ${item.lost || 0}
+        </td>
+
+        <td>
+          ${esc(item.description || "-")}
+        </td>
+
+        <td>
+
+          <div class="action-group">
+
+            ${
+              canEdit(item)
+              ?
+
+              `
+              <button
+                class="small-btn edit-btn"
+                onclick="openEditItem('${item.id}')"
+              >
+                Edit
+              </button>
+
+              <button
+                class="small-btn delete-btn"
+                onclick="deleteItem('${item.id}')"
+              >
+                Hapus
+              </button>
+              `
+
+              :
+
+              ""
+            }
+
+          </div>
+
+        </td>
+
+      </tr>
+
+    `).join("");
 }
 
 
-/* =====================================================
-   BADGE
-===================================================== */
+/* =========================================================
+   CEK AKSES INVENTARIS
+   ========================================================= */
 
-function getConditionBadge(condition) {
+function canEdit(item) {
 
-    const map = {
-
-        "Baik": "badge-good",
-
-        "Kurang Baik": "badge-fair",
-
-        "Rusak Berat": "badge-bad",
-
-        "Hilang": "badge-lost"
-
-    };
-
-
-    return (
-        map[condition] ||
-        ""
-    );
-
+  return (
+    isAdmin() ||
+    item.department ===
+      currentUser.department
+  );
 }
 
 
-/* =====================================================
-   OPEN ADD
-===================================================== */
+/* =========================================================
+   TAMBAH BARANG
+   ========================================================= */
 
 function openAddItem() {
 
-    /*
-        Dewan tidak boleh menambah
-        inventaris karena fungsinya
-        sebagai viewer lintas bagian.
-    */
+  $("itemForm").reset();
 
-    if (
-        currentUser.role === "dewan"
-    ) {
+  $("editItemId").value = "";
 
-        alert(
-            "Akun Dewan Harian hanya dapat melihat inventaris seluruh bagian."
-        );
-
-        return;
-
-    }
+  $("modalTitle").textContent =
+    "Tambah Barang";
 
 
-    document
-        .getElementById("itemForm")
-        .reset();
+  $("itemDepartment").disabled =
+    !isAdmin();
 
 
-    document
-        .getElementById("editItemId")
-        .value = "";
+  $("itemDepartment").value =
+    isAdmin()
+      ? DEPTS[0]
+      : currentUser.department;
 
 
-    document
-        .getElementById("modalTitle")
-        .textContent =
-        "Tambah Barang";
-
-
-    const dept =
-        document.getElementById(
-            "itemDepartment"
-        );
-
-
-    if (
-        currentUser.role === "admin"
-    ) {
-
-        dept.disabled = false;
-
-        dept.value =
-            DEPTS[0];
-
-    } else {
-
-        dept.value =
-            currentUser.department;
-
-        dept.disabled = true;
-
-    }
-
-
-    document
-        .getElementById("itemModal")
-        .classList.remove(
-            "hidden"
-        );
-
+  $("itemModal").classList.remove(
+    "hidden"
+  );
 }
 
 
-/* =====================================================
-   OPEN EDIT
-===================================================== */
+/* =========================================================
+   EDIT BARANG
+   ========================================================= */
 
 function openEditItem(id) {
 
-    const items =
-        getItems();
+  const item =
+    items().find(
+      value => value.id === id
+    );
 
 
-    const item =
-        items.find(
-            x => x.id === id
-        );
+  if (
+    !item ||
+    !canEdit(item)
+  ) {
+
+    alert(
+      "Anda tidak memiliki akses."
+    );
+
+    return;
+  }
 
 
-    if (!item) return;
+  $("editItemId").value =
+    item.id;
+
+  $("itemDepartment").value =
+    item.department;
+
+  $("itemName").value =
+    item.name;
+
+  $("itemGood").value =
+    item.good || 0;
+
+  $("itemFair").value =
+    item.fair || 0;
+
+  $("itemBad").value =
+    item.bad || 0;
+
+  $("itemLost").value =
+    item.lost || 0;
+
+  $("itemDescription").value =
+    item.description || "";
 
 
-    if (!canEditItem(item)) {
-
-        alert(
-            "Anda tidak memiliki akses untuk mengedit barang ini."
-        );
-
-        return;
-
-    }
+  $("itemDepartment").disabled =
+    !isAdmin();
 
 
-    document
-        .getElementById("editItemId")
-        .value =
-        item.id;
+  $("modalTitle").textContent =
+    "Edit Barang";
 
 
-    document
-        .getElementById("itemDepartment")
-        .value =
-        item.department;
-
-
-    document
-        .getElementById("itemName")
-        .value =
-        item.name;
-
-
-    document
-        .getElementById("itemQuantity")
-        .value =
-        item.quantity;
-
-
-    document
-        .getElementById("itemCondition")
-        .value =
-        item.condition;
-
-
-    document
-        .getElementById("itemDescription")
-        .value =
-        item.description || "";
-
-
-    document
-        .getElementById("modalTitle")
-        .textContent =
-        "Edit Barang";
-
-
-    if (
-        currentUser.role === "admin"
-    ) {
-
-        document
-            .getElementById("itemDepartment")
-            .disabled = false;
-
-    } else {
-
-        document
-            .getElementById("itemDepartment")
-            .disabled = true;
-
-    }
-
-
-    document
-        .getElementById("itemModal")
-        .classList.remove(
-            "hidden"
-        );
-
+  $("itemModal").classList.remove(
+    "hidden"
+  );
 }
 
 
-/* =====================================================
-   CLOSE MODAL
-===================================================== */
+/* =========================================================
+   TUTUP MODAL BARANG
+   ========================================================= */
 
 function closeItemModal() {
 
-    document
-        .getElementById("itemModal")
-        .classList.add(
-            "hidden"
-        );
-
+  $("itemModal").classList.add(
+    "hidden"
+  );
 }
 
 
-/* =====================================================
-   SAVE ITEM
-===================================================== */
+/* =========================================================
+   SIMPAN BARANG
+   ========================================================= */
 
 function saveItem(event) {
 
-    event.preventDefault();
+  event.preventDefault();
 
 
-    const id =
-        document
-            .getElementById("editItemId")
-            .value;
+  let department =
+    $("itemDepartment").value;
 
 
-    let department =
-        document
-            .getElementById("itemDepartment")
-            .value;
+  if (!isAdmin()) {
 
+    department =
+      currentUser.department;
+  }
 
-    /*
-        Security logic prototype:
 
-        User bagian tidak boleh
-        mengubah bagian barang.
-    */
+  const item = {
 
-    if (
-        currentUser.role === "bagian"
-    ) {
+    department,
 
-        department =
-            currentUser.department;
+    name:
+      $("itemName")
+        .value
+        .trim(),
 
-    }
+    good:
+      Math.max(
+        0,
+        Number($("itemGood").value) || 0
+      ),
 
+    fair:
+      Math.max(
+        0,
+        Number($("itemFair").value) || 0
+      ),
 
-    const name =
-        document
-            .getElementById("itemName")
-            .value
-            .trim();
+    bad:
+      Math.max(
+        0,
+        Number($("itemBad").value) || 0
+      ),
 
+    lost:
+      Math.max(
+        0,
+        Number($("itemLost").value) || 0
+      ),
 
-    const quantity =
-        Number(
-            document
-                .getElementById("itemQuantity")
-                .value
-        );
+    description:
+      $("itemDescription")
+        .value
+        .trim()
+  };
 
 
-    const condition =
-        document
-            .getElementById("itemCondition")
-            .value;
+  if (!item.name) {
 
-
-    const description =
-        document
-            .getElementById("itemDescription")
-            .value
-            .trim();
-
-
-    if (
-        !department ||
-        !name ||
-        quantity <= 0 ||
-        !condition
-    ) {
-
-        alert(
-            "Data belum lengkap."
-        );
-
-        return;
-
-    }
-
-
-    let items =
-        getItems();
-
-
-    /* =========================================
-       EDIT
-    ========================================= */
-
-    if (id) {
-
-        const index =
-            items.findIndex(
-                item =>
-                    item.id === id
-            );
-
-
-        if (index === -1) return;
-
-
-        if (
-            !canEditItem(
-                items[index]
-            )
-        ) {
-
-            alert(
-                "Anda tidak memiliki akses."
-            );
-
-            return;
-
-        }
-
-
-        items[index] = {
-
-            ...items[index],
-
-            department,
-
-            name,
-
-            quantity,
-
-            condition,
-
-            description,
-
-            updatedAt:
-                new Date().toISOString()
-
-        };
-
-    }
-
-
-    /* =========================================
-       TAMBAH
-    ========================================= */
-
-    else {
-
-        const newItem = {
-
-            id: crypto.randomUUID(),
-
-            department,
-
-            name,
-
-            quantity,
-
-            condition,
-
-            description,
-
-            createdAt:
-                new Date().toISOString()
-
-        };
-
-
-        newItem.number =
-            generateItemNumber(
-                department
-            );
-
-
-        items.push(newItem);
-
-    }
-
-
-    saveItems(items);
-
-    closeItemModal();
-
-    renderInventory();
-
-    renderDashboard();
-
-}
-
-
-/* =====================================================
-   GENERATE ITEM NUMBER
-===================================================== */
-
-function generateItemNumber(department) {
-
-    const prefix =
-        getDepartmentPrefix(
-            department
-        );
-
-
-    const items =
-        getItems();
-
-
-    const departmentItems =
-        items.filter(
-            item =>
-                item.department === department
-        );
-
-
-    let maxNumber = 0;
-
-
-    departmentItems.forEach(
-        item => {
-
-            const match =
-                item.number?.match(
-                    /(\d+)$/
-                );
-
-
-            if (match) {
-
-                const number =
-                    Number(
-                        match[1]
-                    );
-
-
-                if (
-                    number > maxNumber
-                ) {
-
-                    maxNumber = number;
-
-                }
-
-            }
-
-        }
+    alert(
+      "Nama barang wajib diisi."
     );
 
+    return;
+  }
 
-    const next =
-        maxNumber + 1;
 
+  if (total(item) <= 0) {
 
-    return (
-        prefix +
-        "-" +
-        String(next).padStart(3, "0")
+    alert(
+      "Jumlah barang harus lebih dari 0."
     );
 
-}
+    return;
+  }
 
 
-/* =====================================================
-   PREFIX
-===================================================== */
+  const data = items();
 
-function getDepartmentPrefix(department) {
+  const id =
+    $("editItemId").value;
 
-    const prefixes = {
 
-        "Logistik": "LOG",
+  if (id) {
 
-        "Bahasa": "BHS",
+    const index =
+      data.findIndex(
+        value => value.id === id
+      );
 
-        "Kesehatan": "KES",
 
-        "Ta'mir Masjid": "TMR",
+    if (
+      index < 0 ||
+      !canEdit(data[index])
+    ) {
 
-        "Keamanan": "KAM",
+      alert(
+        "Anda tidak memiliki akses."
+      );
 
-        "Pramuka": "PRA",
+      return;
+    }
 
-        "Olahraga": "OLA",
 
-        "Dewan Harian": "DWH",
+    data[index] = {
 
-        "Dapur": "DAP",
+      ...data[index],
 
-        "Kesenian": "KSN"
+      ...item,
 
+      updatedAt:
+        new Date().toISOString()
     };
 
 
-    return (
-        prefixes[department] ||
-        "HSD"
-    );
+  } else {
 
+    data.push({
+
+      id:
+        crypto.randomUUID(),
+
+      number:
+        nextNumber(
+          department,
+          data
+        ),
+
+      ...item,
+
+      createdAt:
+        new Date().toISOString()
+    });
+  }
+
+
+  saveItems(data);
+
+  closeItemModal();
+
+  renderInventory();
+
+  renderDashboard();
 }
 
 
-/* =====================================================
-   DELETE ITEM
-===================================================== */
+/* =========================================================
+   HAPUS BARANG
+   ========================================================= */
 
 function deleteItem(id) {
 
-    const items =
-        getItems();
+  const item =
+    items().find(
+      value => value.id === id
+    );
 
 
-    const item =
-        items.find(
-            x => x.id === id
-        );
+  if (
+    !item ||
+    !canEdit(item)
+  ) {
+
+    alert(
+      "Anda tidak memiliki akses."
+    );
+
+    return;
+  }
 
 
-    if (!item) return;
+  if (
+    confirm(
+      `Hapus ${item.name}?`
+    )
+  ) {
 
-
-    if (
-        !canEditItem(item)
-    ) {
-
-        alert(
-            "Anda tidak memiliki akses untuk menghapus barang ini."
-        );
-
-        return;
-
-    }
-
-
-    const confirmDelete =
-        confirm(
-            `Hapus barang "${item.name}"?`
-        );
-
-
-    if (!confirmDelete) return;
-
-
-    const newItems =
-        items.filter(
-            x => x.id !== id
-        );
-
-
-    saveItems(newItems);
-
+    saveItems(
+      items().filter(
+        value => value.id !== id
+      )
+    );
 
     renderInventory();
 
     renderDashboard();
-
+  }
 }
 
 
-/* =====================================================
-   ACCOUNT MANAGEMENT
-===================================================== */
+/* =========================================================
+   BARANG UNTUK PEMINJAMAN
+   ========================================================= */
+
+function populateLoanItems() {
+
+  const department =
+    isAdmin()
+      ? $("loanDepartment").value
+      : currentUser.department;
+
+
+  const select =
+    $("loanItem");
+
+
+  if (!select) {
+    return;
+  }
+
+
+  const data =
+    items().filter(
+      item =>
+        item.department ===
+        department
+    );
+
+
+  if (!data.length) {
+
+    select.innerHTML = `
+      <option value="">
+        Belum ada barang
+      </option>
+    `;
+
+    return;
+  }
+
+
+  select.innerHTML =
+    data.map(item => `
+
+      <option value="${item.id}">
+
+        ${esc(item.number)}
+        -
+        ${esc(item.name)}
+        (total ${total(item)})
+
+      </option>
+
+    `).join("");
+}
+
+
+/* =========================================================
+   TAMBAH PEMINJAMAN
+   ========================================================= */
+
+function openAddLoan() {
+
+  $("loanForm").reset();
+
+  $("editLoanId").value = "";
+
+
+  $("loanDepartment").disabled =
+    !isAdmin();
+
+
+  $("loanDepartment").value =
+    isAdmin()
+      ? DEPTS[0]
+      : currentUser.department;
+
+
+  populateLoanItems();
+
+
+  $("loanDate").value =
+    new Date()
+      .toISOString()
+      .slice(0, 10);
+
+
+  $("loanStatus").value =
+    "Dipinjam";
+
+
+  $("loanModal").classList.remove(
+    "hidden"
+  );
+}
+
+
+/* =========================================================
+   TUTUP MODAL PEMINJAMAN
+   ========================================================= */
+
+function closeLoanModal() {
+
+  $("loanModal").classList.add(
+    "hidden"
+  );
+}
+
+
+/* =========================================================
+   SIMPAN PEMINJAMAN
+   ========================================================= */
+
+function saveLoan(event) {
+
+  event.preventDefault();
+
+
+  const department =
+    isAdmin()
+      ? $("loanDepartment").value
+      : currentUser.department;
+
+
+  const item =
+    items().find(
+      value =>
+        value.id ===
+        $("loanItem").value
+    );
+
+
+  const quantity =
+    Number($("loanQty").value) || 0;
+
+
+  if (
+    !item ||
+    quantity <= 0
+  ) {
+
+    alert(
+      "Data peminjaman belum lengkap."
+    );
+
+    return;
+  }
+
+
+  if (
+    quantity > total(item)
+  ) {
+
+    alert(
+      "Jumlah pinjaman melebihi total barang."
+    );
+
+    return;
+  }
+
+
+  const id =
+    $("editLoanId").value;
+
+
+  const data =
+    loans();
+
+
+  const loan = {
+
+    department,
+
+    itemId:
+      item.id,
+
+    itemName:
+      item.name,
+
+    qty:
+      quantity,
+
+    borrower:
+      $("loanBorrower")
+        .value
+        .trim(),
+
+    loanDate:
+      $("loanDate").value,
+
+    dueDate:
+      $("loanDueDate").value,
+
+    status:
+      $("loanStatus").value,
+
+    note:
+      $("loanNote")
+        .value
+        .trim()
+  };
+
+
+  if (!loan.borrower) {
+
+    alert(
+      "Nama peminjam wajib diisi."
+    );
+
+    return;
+  }
+
+
+  if (id) {
+
+    const index =
+      data.findIndex(
+        value => value.id === id
+      );
+
+
+    if (index >= 0) {
+
+      data[index] = {
+
+        ...data[index],
+
+        ...loan
+      };
+    }
+
+
+  } else {
+
+    data.push({
+
+      id:
+        nextLoan(),
+
+      ...loan,
+
+      createdAt:
+        new Date().toISOString()
+    });
+  }
+
+
+  saveLoans(data);
+
+  closeLoanModal();
+
+  renderLoans();
+}
+
+
+/* =========================================================
+   TAMPILKAN PEMINJAMAN
+   ========================================================= */
+
+function renderLoans() {
+
+  let data =
+    visibleLoans();
+
+
+  const search =
+    (
+      $("loanSearch")?.value ||
+      ""
+    ).toLowerCase();
+
+
+  if (search) {
+
+    data =
+      data.filter(
+        loan =>
+          loan.itemName
+            .toLowerCase()
+            .includes(search) ||
+
+          loan.borrower
+            .toLowerCase()
+            .includes(search)
+      );
+  }
+
+
+  const body =
+    $("loansBody");
+
+
+  if (!body) {
+    return;
+  }
+
+
+  if (!data.length) {
+
+    body.innerHTML = `
+      <tr>
+        <td
+          colspan="10"
+          class="empty-cell"
+        >
+          Belum ada data peminjaman.
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
+
+
+  body.innerHTML =
+    data.map(loan => `
+
+      <tr>
+
+        <td>
+          <b>
+            ${esc(loan.id)}
+          </b>
+        </td>
+
+        <td>
+          ${esc(loan.department)}
+        </td>
+
+        <td>
+          ${esc(loan.itemName)}
+        </td>
+
+        <td>
+          ${loan.qty}
+        </td>
+
+        <td>
+          ${esc(loan.borrower)}
+        </td>
+
+        <td>
+          ${esc(loan.loanDate)}
+        </td>
+
+        <td>
+          ${esc(loan.dueDate || "-")}
+        </td>
+
+        <td>
+
+          <span
+            class="status ${
+              loan.status === "Dikembalikan"
+                ? "returned"
+                : "borrowed"
+            }"
+          >
+
+            ${esc(loan.status)}
+
+          </span>
+
+        </td>
+
+        <td>
+          ${esc(loan.note || "-")}
+        </td>
+
+        <td>
+
+          <div class="action-group">
+
+            ${
+              loan.status === "Dipinjam" &&
+              canLoanEdit(loan)
+
+              ?
+
+              `
+              <button
+                class="small-btn return-btn"
+                onclick="returnLoan('${loan.id}')"
+              >
+                Dikembalikan
+              </button>
+              `
+
+              :
+
+              ""
+            }
+
+
+            ${
+              canLoanEdit(loan)
+
+              ?
+
+              `
+              <button
+                class="small-btn edit-btn"
+                onclick="openEditLoan('${loan.id}')"
+              >
+                Edit
+              </button>
+
+              <button
+                class="small-btn delete-btn"
+                onclick="deleteLoan('${loan.id}')"
+              >
+                Hapus
+              </button>
+              `
+
+              :
+
+              ""
+            }
+
+          </div>
+
+        </td>
+
+      </tr>
+
+    `).join("");
+}
+
+
+/* =========================================================
+   AKSES PEMINJAMAN
+   ========================================================= */
+
+function canLoanEdit(loan) {
+
+  return (
+    isAdmin() ||
+    loan.department ===
+      currentUser.department
+  );
+}
+
+
+/* =========================================================
+   TANDAI DIKEMBALIKAN
+   ========================================================= */
+
+function returnLoan(id) {
+
+  const data =
+    loans();
+
+
+  const index =
+    data.findIndex(
+      loan => loan.id === id
+    );
+
+
+  if (
+    index < 0 ||
+    !canLoanEdit(data[index])
+  ) {
+
+    return;
+  }
+
+
+  data[index].status =
+    "Dikembalikan";
+
+
+  data[index].returnedAt =
+    new Date().toISOString();
+
+
+  saveLoans(data);
+
+  renderLoans();
+}
+
+
+/* =========================================================
+   EDIT PEMINJAMAN
+   ========================================================= */
+
+function openEditLoan(id) {
+
+  const loan =
+    loans().find(
+      value => value.id === id
+    );
+
+
+  if (
+    !loan ||
+    !canLoanEdit(loan)
+  ) {
+
+    return;
+  }
+
+
+  $("editLoanId").value =
+    loan.id;
+
+  $("loanDepartment").value =
+    loan.department;
+
+  $("loanDepartment").disabled =
+    !isAdmin();
+
+
+  populateLoanItems();
+
+
+  $("loanItem").value =
+    loan.itemId;
+
+  $("loanQty").value =
+    loan.qty;
+
+  $("loanBorrower").value =
+    loan.borrower;
+
+  $("loanDate").value =
+    loan.loanDate;
+
+  $("loanDueDate").value =
+    loan.dueDate || "";
+
+  $("loanStatus").value =
+    loan.status;
+
+  $("loanNote").value =
+    loan.note || "";
+
+
+  $("loanModal").classList.remove(
+    "hidden"
+  );
+}
+
+
+/* =========================================================
+   HAPUS PEMINJAMAN
+   ========================================================= */
+
+function deleteLoan(id) {
+
+  const loan =
+    loans().find(
+      value => value.id === id
+    );
+
+
+  if (
+    !loan ||
+    !canLoanEdit(loan)
+  ) {
+
+    return;
+  }
+
+
+  if (
+    confirm(
+      "Hapus data peminjaman ini?"
+    )
+  ) {
+
+    saveLoans(
+      loans().filter(
+        value => value.id !== id
+      )
+    );
+
+    renderLoans();
+  }
+}
+
+
+/* =========================================================
+   MANAJEMEN AKUN ADMIN
+   ========================================================= */
 
 function renderAccounts() {
 
-    if (
-        currentUser.role !== "admin"
-    ) {
-
-        return;
-
-    }
+  const body =
+    $("accountsBody");
 
 
-    const body =
-        document.getElementById(
-            "accountsBody"
-        );
+  if (!body) {
+    return;
+  }
 
 
-    const users =
-        getUsers();
+  const data =
+    users();
 
 
-    body.innerHTML = "";
+  if (!data.length) {
+
+    body.innerHTML = `
+      <tr>
+        <td
+          colspan="6"
+          class="empty-cell"
+        >
+          Belum ada akun.
+        </td>
+      </tr>
+    `;
+
+    return;
+  }
 
 
-    if (users.length === 0) {
+  body.innerHTML =
+    data.map(user => `
 
-        body.innerHTML = `
-            <tr>
-                <td colspan="6"
-                    style="text-align:center;padding:30px;">
-                    Belum ada akun yang mendaftar.
-                </td>
-            </tr>
-        `;
+      <tr>
 
-        return;
+        <td>
+          ${esc(user.name)}
+        </td>
 
-    }
+        <td>
+          ${esc(user.username)}
+        </td>
+
+        <td>
+          ${esc(user.department)}
+        </td>
+
+        <td>
+          ${esc(user.role)}
+        </td>
+
+        <td>
+          ${esc(user.status)}
+        </td>
+
+        <td>
+
+          ${
+            user.status === "pending"
+
+            ?
+
+            `
+            <button
+              class="small-btn approve-btn"
+              onclick="approveUser('${user.id}')"
+            >
+              Setujui
+            </button>
+            `
+
+            :
+
+            ""
+          }
 
 
-    users.forEach(user => {
-
-        const row =
-            document.createElement(
-                "tr"
-            );
-
-
-        const statusClass =
+          ${
             user.status === "approved"
-                ? "badge-approved"
-                : "badge-pending";
 
+            ?
 
-        row.innerHTML = `
+            `
+            <button
+              class="small-btn delete-btn"
+              onclick="rejectUser('${user.id}')"
+            >
+              Nonaktifkan
+            </button>
+            `
 
-            <td>
-                ${escapeHTML(user.name)}
-            </td>
+            :
 
-            <td>
-                ${escapeHTML(user.username)}
-            </td>
+            ""
+          }
 
-            <td>
-                ${escapeHTML(user.department)}
-            </td>
+        </td>
 
-            <td>
-                ${getRoleName(user.role)}
-            </td>
+      </tr>
 
-            <td>
-                <span class="badge ${statusClass}">
-                    ${escapeHTML(user.status)}
-                </span>
-            </td>
-
-            <td>
-
-                <div class="action-group">
-
-                    ${
-                        user.status === "pending"
-                        ?
-                        `
-                            <button
-                                class="small-btn approve-btn"
-                                onclick="approveUser('${user.id}')">
-                                Setujui
-                            </button>
-                        `
-                        :
-                        ""
-                    }
-
-
-                    <button
-                        class="small-btn delete-btn"
-                        onclick="deleteUser('${user.id}')">
-                        Hapus
-                    </button>
-
-                </div>
-
-            </td>
-
-        `;
-
-
-        body.appendChild(row);
-
-    });
-
+    `).join("");
 }
 
 
-/* =====================================================
-   ROLE NAME
-===================================================== */
-
-function getRoleName(role) {
-
-    const roles = {
-
-        admin:
-            "Admin",
-
-        dewan:
-            "Dewan Harian",
-
-        bagian:
-            "Bagian"
-
-    };
-
-
-    return (
-        roles[role] ||
-        role
-    );
-
-}
-
-
-/* =====================================================
-   APPROVE USER
-===================================================== */
+/* =========================================================
+   SETUJUI AKUN
+   ========================================================= */
 
 function approveUser(id) {
 
-    if (
-        currentUser.role !== "admin"
-    ) {
-
-        return;
-
-    }
+  if (!isAdmin()) {
+    return;
+  }
 
 
-    const users =
-        getUsers();
+  const data =
+    users();
 
 
-    const user =
-        users.find(
-            u => u.id === id
-        );
+  const index =
+    data.findIndex(
+      user => user.id === id
+    );
 
 
-    if (!user) return;
+  if (index >= 0) {
 
+    data[index].status =
+      "approved";
 
-    user.status =
-        "approved";
-
-
-    saveUsers(users);
-
+    saveUsers(data);
 
     renderAccounts();
-
+  }
 }
 
 
-/* =====================================================
-   DELETE USER
-===================================================== */
+/* =========================================================
+   NONAKTIFKAN AKUN
+   ========================================================= */
 
-function deleteUser(id) {
+function rejectUser(id) {
 
-    if (
-        currentUser.role !== "admin"
-    ) {
-
-        return;
-
-    }
+  if (!isAdmin()) {
+    return;
+  }
 
 
-    const users =
-        getUsers();
+  if (
+    !confirm(
+      "Nonaktifkan akun ini?"
+    )
+  ) {
+
+    return;
+  }
 
 
-    const user =
-        users.find(
-            u => u.id === id
-        );
+  const data =
+    users();
 
 
-    if (!user) return;
+  const index =
+    data.findIndex(
+      user => user.id === id
+    );
 
 
-    const confirmed =
-        confirm(
-            `Hapus akun ${user.username}?`
-        );
+  if (index >= 0) {
 
+    data[index].status =
+      "rejected";
 
-    if (!confirmed) return;
-
-
-    const newUsers =
-        users.filter(
-            u => u.id !== id
-        );
-
-
-    saveUsers(newUsers);
-
+    saveUsers(data);
 
     renderAccounts();
-
-}
-
-
-/* =====================================================
-   ESCAPE HTML
-===================================================== */
-
-function escapeHTML(value) {
-
-    if (
-        value === null ||
-        value === undefined
-    ) {
-
-        return "";
-
-    }
-
-
-    return String(value)
-
-        .replaceAll("&", "&amp;")
-
-        .replaceAll("<", "&lt;")
-
-        .replaceAll(">", "&gt;")
-
-        .replaceAll('"', "&quot;")
-
-        .replaceAll("'", "&#039;");
-
+  }
 }
