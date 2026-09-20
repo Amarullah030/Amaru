@@ -452,6 +452,8 @@ function showAppPage() {
     app.classList.remove("hidden");
   }
 
+  renderUserInfo();
+
   showSection("dashboard");
 }
 
@@ -1816,25 +1818,54 @@ function populateSelects() {
 ========================= */
 
 function renderUserInfo() {
+  const userName =
+    currentUser?.name ||
+    currentUser?.username ||
+    "User";
+
+  const userRole =
+    isAdmin()
+      ? "Administrator"
+      : getUserDept();
+
+  const userDepartment =
+    isAdmin()
+      ? "Semua Bagian"
+      : getUserDept();
+
   setText(
     "currentUserName",
-    currentUser?.name || ""
+    userName
   );
 
   setText(
     "currentUserRole",
-    isAdmin()
-      ? "Administrator"
-      : getUserDept()
+    userRole
+  );
+
+  setText(
+    "topbarName",
+    userName
   );
 
   setText(
     "currentUserDepartment",
-    isAdmin()
-      ? "Semua Bagian"
-      : getUserDept()
+    userDepartment
   );
 
+  /* Avatar otomatis mengambil huruf pertama nama */
+  const avatar =
+    document.querySelector(".user-avatar");
+
+  if (avatar) {
+    avatar.textContent =
+      userName
+        .trim()
+        .charAt(0)
+        .toUpperCase();
+  }
+
+  /* Menu khusus Admin */
   document
     .querySelectorAll(
       "[data-admin-only]"
@@ -1846,7 +1877,6 @@ function renderUserInfo() {
       );
     });
 }
-
 
 /* =========================
    FORM LOGIN
