@@ -1437,13 +1437,12 @@ td .btn + .btn {
 
   background: linear-gradient(
     135deg,
-    #dff4e9 0%,
-    #eefaf4 50%,
-    #d7f0e3 100%
+    #b9e3cf 0%,
+    #cdebdc 50%,
+    #a9d9c0 100%
   );
 
   border-radius: 0 0 24px 24px;
-
   overflow: hidden;
 }
 
@@ -1505,8 +1504,7 @@ td .btn + .btn {
   margin-top: 18px;
   padding: 18px 20px;
 
-  background: rgba(223, 244, 233, 0.75);
-
+  background: rgba(185, 227, 207, 0.95);
   border: 1px solid rgba(5, 78, 50, 0.08);
 
   border-radius: 16px;
