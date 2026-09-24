@@ -2127,6 +2127,12 @@ function setupInventoryFilter() {
     return;
   }
 
+  // Filter bagian hanya ditampilkan untuk Admin
+  filter.parentElement.classList.toggle(
+    "hidden",
+    !isAdmin()
+  );
+
   filter.addEventListener(
     "change",
     renderFilteredInventory
