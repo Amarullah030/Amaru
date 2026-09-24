@@ -1421,81 +1421,46 @@ td .btn + .btn {
 }
 
 /* =========================================================
-   DASHBOARD - FULL WIDTH HEADER BACKGROUND
+   DASHBOARD - WARNA SAMA DENGAN SIDEBAR
    ========================================================= */
 
-/* Area atas dashboard */
-.main-content {
-  position: relative;
-}
-
-/* Background besar dari sisi kiri sampai kanan */
 .topbar {
   position: relative;
   margin: -28px -28px 0 -28px;
   padding: 28px 28px 34px 28px;
 
-  background: linear-gradient(
-    135deg,
-    #b9e3cf 0%,
-    #cdebdc 50%,
-    #a9d9c0 100%
-  );
+  /* warna sama dengan sidebar */
+  background: var(--green-900);
 
   border-radius: 0 0 24px 24px;
   overflow: hidden;
 }
 
-/* Hiasan background */
-.topbar::before {
-  content: "";
-  position: absolute;
-
-  width: 260px;
-  height: 260px;
-
-  right: -80px;
-  top: -110px;
-
-  background: rgba(255, 255, 255, 0.45);
-
-  border-radius: 50%;
-}
-
-/* Judul */
+/* Judul Dashboard */
 .topbar > div:first-child h1 {
   position: relative;
   z-index: 2;
 
   display: inline-block;
-
   margin: 0;
-  padding: 8px 16px;
+  padding: 9px 16px;
 
   border-radius: 10px;
 
-  background: rgba(255, 255, 255, 0.65);
-
-  color: var(--green-800);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
-/* Subtitle */
+/* Subtitle Dashboard */
 .topbar > div:first-child p {
   position: relative;
   z-index: 2;
-
-  margin-top: 8px;
-}
-
-/* User di kanan atas */
-.topbar-user {
-  position: relative;
-  z-index: 3;
+  color: rgba(255, 255, 255, 0.85);
 }
 
 
 /* =========================================================
-   WELCOME AREA
+   SELAMAT DATANG
    ========================================================= */
 
 .welcome-card {
@@ -1504,28 +1469,27 @@ td .btn + .btn {
   margin-top: 18px;
   padding: 18px 20px;
 
-  background: rgba(185, 227, 207, 0.95);
-  border: 1px solid rgba(5, 78, 50, 0.08);
+  background: var(--green-900);
 
+  border: none;
   border-radius: 16px;
 }
 
-/* Judul welcome */
+/* Judul Selamat Datang */
 .welcome-card h2 {
   display: inline-block;
 
   margin: 0;
-
   padding: 8px 14px;
 
   border-radius: 9px;
 
-  background: rgba(255, 255, 255, 0.72);
-
-  color: var(--green-800);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
 /* Deskripsi */
 .welcome-card p {
   margin-top: 8px;
+  color: rgba(255, 255, 255, 0.88);
 }
