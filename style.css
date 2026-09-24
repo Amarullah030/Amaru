@@ -1468,30 +1468,26 @@ td .btn + .btn {
   padding-left: 14px;
 }
 
-.topbar > div:first-child h1::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 5px;
-  width: 5px;
-  height: 36px;
-  border-radius: 6px;
-  background: var(--green-600);
+/* =========================================================
+   DASHBOARD - TITLE BACKGROUND
+   ========================================================= */
+
+/* Background untuk Dashboard HISADA */
+.topbar > div:first-child h1 {
+  display: inline-block;
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #e5f5ed;
+  color: var(--green-800);
 }
 
-/* Bar hijau untuk "Selamat Datang di HISADA" */
+/* Background untuk Selamat Datang di HISADA */
 .welcome-card h2 {
-  position: relative;
-  padding-left: 14px;
-}
-
-.welcome-card h2::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 2px;
-  width: 5px;
-  height: 31px;
-  border-radius: 6px;
-  background: var(--green-600);
+  display: inline-block;
+  margin: 0;
+  padding: 9px 16px;
+  border-radius: 10px;
+  background: #e5f5ed;
+  color: var(--green-800);
 }
