@@ -1493,3 +1493,10 @@ td .btn + .btn {
   margin-top: 8px;
   color: rgba(255, 255, 255, 0.88);
 }
+
+/* Hapus background putih/transparan pada judul dashboard */
+.topbar > div:first-child h1,
+.welcome-card h2 {
+  background: transparent !important;
+  padding: 0 !important;
+}
