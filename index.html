@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HISADA Inventaris</title>
     <link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body>
@@ -486,6 +488,35 @@
             </div>
 
         </section>
+
+            <!-- GRAFIK INVENTARIS HISADA -->
+            <div class="charts-grid">
+
+                <div class="section-card chart-card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Kondisi Inventaris</h2>
+                            <p>Perbandingan kondisi seluruh barang yang terlihat</p>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="conditionChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="section-card chart-card">
+                    <div class="section-header">
+                        <div>
+                            <h2>Jumlah Barang per Bagian</h2>
+                            <p>Perbandingan jumlah unit inventaris</p>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="departmentChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
 
 
         <!-- =================================================
