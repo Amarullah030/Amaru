@@ -739,6 +739,7 @@ function renderDashboard() {
   );
 
   renderDepartmentSummary();
+  renderInventoryCharts();
 }
 
 function renderDepartmentSummary() {
@@ -2375,3 +2376,114 @@ document.addEventListener(
   "DOMContentLoaded",
   init
 );
+
+
+
+/* =========================================
+   GRAFIK INVENTARIS HISADA
+========================================= */
+
+let conditionChartInstance = null;
+let departmentChartInstance = null;
+
+function renderInventoryCharts() {
+  if (typeof Chart === "undefined") {
+    console.warn("Chart.js belum dimuat.");
+    return;
+  }
+
+  const data = visibleItems();
+
+  const good = data.reduce(
+    (sum, item) => sum + normalizeNumber(item.good), 0
+  );
+
+  const fair = data.reduce(
+    (sum, item) => sum + normalizeNumber(item.fair), 0
+  );
+
+  const bad = data.reduce(
+    (sum, item) => sum + normalizeNumber(item.bad), 0
+  );
+
+  const lost = data.reduce(
+    (sum, item) => sum + normalizeNumber(item.lost), 0
+  );
+
+  const conditionCanvas = document.getElementById("conditionChart");
+
+  if (conditionCanvas) {
+    if (conditionChartInstance) {
+      conditionChartInstance.destroy();
+    }
+
+    conditionChartInstance = new Chart(conditionCanvas, {
+      type: "doughnut",
+      data: {
+        labels: ["Baik", "Kurang Baik", "Rusak Berat", "Hilang"],
+        datasets: [{
+          data: [good, fair, bad, lost],
+          backgroundColor: ["#22a06b", "#f4c542", "#e05252", "#64748b"],
+          borderWidth: 2
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: "bottom"
+          }
+        }
+      }
+    });
+  }
+
+  const departmentCanvas = document.getElementById("departmentChart");
+
+  if (departmentCanvas) {
+    if (departmentChartInstance) {
+      departmentChartInstance.destroy();
+    }
+
+    const departments = isAdmin()
+      ? DEPTS
+      : [getUserDept()];
+
+    const departmentTotals = departments.map(dept =>
+      data
+        .filter(item => item.department === dept)
+        .reduce((sum, item) => sum + itemTotal(item), 0)
+    );
+
+    departmentChartInstance = new Chart(departmentCanvas, {
+      type: "bar",
+      data: {
+        labels: departments,
+        datasets: [{
+          label: "Jumlah Barang",
+          data: departmentTotals,
+          backgroundColor: "#279568",
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              precision: 0
+            }
+          }
+        },
+        plugins: {
+          legend: {
+            display: false
+          }
+        }
+      }
+    });
+  }
+}
