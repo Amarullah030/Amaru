@@ -21,13 +21,11 @@ const DEPTS = [
   "Kesenian"
 ];
 
-const ADMIN = {
-  username: "216416",
-  password: "Amarullah060308",
-  name: "Admin HISADA",
-  role: "admin",
-  status: "approved"
-};
+/* Akun Admin tidak lagi ditulis di kode.
+   Dibuat sekali lewat layar "Buat Akun Admin". */
+const ADMIN_KEY = "hisada_admin_v4";
+
+const TIME_ZONE = "Asia/Jakarta";
 
 const USERS_KEY = "hisada_users_v4";
 const ITEMS_KEY = "hisada_items_v4";
@@ -67,6 +65,104 @@ function uid() {
 
 function now() {
   return new Date().toISOString();
+}
+
+/* Waktu sekarang (WIB) untuk input datetime-local,
+   contoh: "2026-10-30T19:45" */
+function nowLocalInput() {
+  const parts = {};
+
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  })
+    .formatToParts(new Date())
+    .forEach(part => {
+      parts[part.type] = part.value;
+    });
+
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`;
+}
+
+/* Tanggal + jam, contoh: "30/10/2026 19.45" */
+function formatDateTime(value) {
+  if (!value) return "-";
+
+  const text =
+    String(value);
+
+  /* Tanggal saja (data lama) */
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+    return formatDate(text);
+  }
+
+  /* Dari input datetime-local, sudah dalam WIB */
+  const local =
+    text.match(
+      /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/
+    );
+
+  if (local) {
+    return `${local[3]}/${local[2]}/${local[1]} ${local[4]}.${local[5]}`;
+  }
+
+  const d = new Date(text);
+
+  if (Number.isNaN(d.getTime())) {
+    return text;
+  }
+
+  return d
+    .toLocaleString("id-ID", {
+      timeZone: TIME_ZONE,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    })
+    .replace(",", "");
+}
+
+/* Jam berjalan di topbar */
+function renderClock() {
+  const d = new Date();
+
+  const date =
+    d.toLocaleDateString("id-ID", {
+      timeZone: TIME_ZONE,
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
+    });
+
+  const time =
+    d.toLocaleTimeString("id-ID", {
+      timeZone: TIME_ZONE,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit"
+    });
+
+  setText(
+    "currentClock",
+    `${date} · ${time} WIB`
+  );
+}
+
+function startClock() {
+  renderClock();
+
+  setInterval(
+    renderClock,
+    1000
+  );
 }
 
 function formatDate(date) {
@@ -155,36 +251,137 @@ function saveLoans(data) {
   saveJSON(LOANS_KEY, data);
 }
 
+function adminAccount() {
+  return loadJSON(ADMIN_KEY, null);
+}
+
+
+/* =========================
+   PASSWORD (HASH)
+========================= */
+
+/* Password disimpan sebagai hash SHA-256 + salt,
+   bukan teks aslinya */
+async function hashPassword(password, salt) {
+  if (!window.crypto?.subtle) {
+    throw new Error(
+      "Browser ini tidak mendukung enkripsi. Buka lewat https (GitHub Pages)."
+    );
+  }
+
+  const bytes =
+    new TextEncoder().encode(
+      `${salt}:${password}`
+    );
+
+  const digest =
+    await crypto.subtle.digest(
+      "SHA-256",
+      bytes
+    );
+
+  return Array.from(
+    new Uint8Array(digest)
+  )
+    .map(b => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+async function makePasswordFields(password) {
+  const passwordSalt =
+    uid();
+
+  return {
+    passwordSalt,
+    passwordHash:
+      await hashPassword(password, passwordSalt)
+  };
+}
+
+/* Mendukung akun lama yang passwordnya
+   masih tersimpan apa adanya */
+async function checkPassword(account, password) {
+  if (account.passwordHash) {
+    return (
+      await hashPassword(
+        password,
+        account.passwordSalt
+      )
+    ) === account.passwordHash;
+  }
+
+  return account.password === password;
+}
+
 
 /* =========================
    SESSION
 ========================= */
 
+/* Salinan data user tanpa password */
+function publicUser(user) {
+  const copy = {
+    ...user
+  };
+
+  delete copy.password;
+  delete copy.passwordHash;
+  delete copy.passwordSalt;
+
+  return copy;
+}
+
+/* Session hanya menyimpan username */
 function saveSession() {
   if (currentUser) {
     localStorage.setItem(
       SESSION_KEY,
-      JSON.stringify(currentUser)
+      JSON.stringify({
+        username: currentUser.username
+      })
     );
   } else {
     localStorage.removeItem(SESSION_KEY);
   }
 }
 
+/* Data user selalu dicek ulang, jadi akun yang
+   dinonaktifkan Admin langsung keluar */
 function loadSession() {
-  try {
-    const raw =
-      localStorage.getItem(SESSION_KEY);
+  const saved =
+    loadJSON(SESSION_KEY, null);
 
-    if (!raw) {
-      currentUser = null;
-      return;
+  const username =
+    saved?.username || "";
+
+  currentUser = null;
+
+  const admin =
+    adminAccount();
+
+  if (
+    admin &&
+    username === admin.username
+  ) {
+    currentUser =
+      publicUser(admin);
+  } else if (username) {
+    const user =
+      users().find(
+        item =>
+          item.username === username
+      );
+
+    if (
+      user &&
+      user.status === "approved"
+    ) {
+      currentUser =
+        publicUser(user);
     }
-
-    currentUser = JSON.parse(raw);
-  } catch (error) {
-    currentUser = null;
   }
+
+  saveSession();
 }
 
 function logout() {
@@ -398,12 +595,39 @@ function nextLoanCode() {
    TOTAL INVENTARIS
 ========================= */
 
+/* Total = barang yang masih ada (tanpa Hilang) */
 function itemTotal(item) {
   return (
     normalizeNumber(item.good) +
     normalizeNumber(item.fair) +
-    normalizeNumber(item.bad) +
-    normalizeNumber(item.lost)
+    normalizeNumber(item.bad)
+  );
+}
+
+/* Jumlah unit yang sedang dipinjam (belum kembali) */
+function borrowedCount(itemId, ignoreLoanId = null) {
+  return loans()
+    .filter(
+      loan =>
+        loan.itemId === itemId &&
+        loan.id !== ignoreLoanId &&
+        loan.status !== "Dikembalikan"
+    )
+    .reduce(
+      (sum, loan) =>
+        sum + normalizeNumber(loan.quantity),
+      0
+    );
+}
+
+/* Yang bisa dipinjam: kondisi Baik + Kurang Baik
+   dikurangi yang sedang dipinjam */
+function availableCount(item, ignoreLoanId = null) {
+  return Math.max(
+    0,
+    normalizeNumber(item.good) +
+      normalizeNumber(item.fair) -
+      borrowedCount(item.id, ignoreLoanId)
   );
 }
 
@@ -427,8 +651,11 @@ function hideAllPages() {
 function showLoginPage() {
   hideAllPages();
 
+  /* Belum ada Admin di browser ini */
   const page =
-    $("loginPage");
+    adminAccount()
+      ? $("loginPage")
+      : $("setupPage");
 
   if (page) {
     page.classList.remove("hidden");
@@ -506,23 +733,108 @@ function showSection(section) {
 
 
 /* =========================
+   BUAT ADMIN PERTAMA
+========================= */
+
+async function setupAdmin(data) {
+  if (adminAccount()) {
+    return {
+      success: false,
+      message:
+        "Akun Admin sudah ada."
+    };
+  }
+
+  const username =
+    String(data.username || "").trim();
+
+  const password =
+    String(data.password || "");
+
+  if (!username) {
+    return {
+      success: false,
+      message:
+        "Username wajib diisi."
+    };
+  }
+
+  if (password.length < 8) {
+    return {
+      success: false,
+      message:
+        "Password minimal 8 karakter."
+    };
+  }
+
+  if (password !== data.confirm) {
+    return {
+      success: false,
+      message:
+        "Ulangi password tidak sama."
+    };
+  }
+
+  if (
+    users().some(
+      user =>
+        user.username === username
+    )
+  ) {
+    return {
+      success: false,
+      message:
+        "Username sudah dipakai akun bagian."
+    };
+  }
+
+  saveJSON(ADMIN_KEY, {
+    id: uid(),
+    username,
+    ...(await makePasswordFields(password)),
+    name: "Admin HISADA",
+    role: "admin",
+    status: "approved",
+    createdAt: now()
+  });
+
+  return {
+    success: true,
+    message:
+      "Akun Admin berhasil dibuat. Silakan login."
+  };
+}
+
+
+/* =========================
    LOGIN
 ========================= */
 
-function login(username, password) {
+async function login(username, password) {
   username =
     String(username || "").trim();
 
   password =
     String(password || "");
 
+  const admin =
+    adminAccount();
+
   if (
-    username === ADMIN.username &&
-    password === ADMIN.password
+    admin &&
+    username === admin.username
   ) {
-    currentUser = {
-      ...ADMIN
-    };
+    if (
+      !(await checkPassword(admin, password))
+    ) {
+      return {
+        success: false,
+        message: "Password salah."
+      };
+    }
+
+    currentUser =
+      publicUser(admin);
 
     saveSession();
     showAppPage();
@@ -531,8 +843,11 @@ function login(username, password) {
     };
   }
 
+  const dataUsers =
+    users();
+
   const user =
-    users().find(
+    dataUsers.find(
       item =>
         item.username === username
     );
@@ -545,7 +860,7 @@ function login(username, password) {
   }
 
   if (
-    user.password !== password
+    !(await checkPassword(user, password))
   ) {
     return {
       success: false,
@@ -565,9 +880,20 @@ function login(username, password) {
     };
   }
 
-  currentUser = {
-    ...user
-  };
+  /* Akun lama: ganti password teks asli menjadi hash */
+  if (!user.passwordHash) {
+    Object.assign(
+      user,
+      await makePasswordFields(password)
+    );
+
+    delete user.password;
+
+    saveUsers(dataUsers);
+  }
+
+  currentUser =
+    publicUser(user);
 
   saveSession();
   showAppPage();
@@ -582,7 +908,7 @@ function login(username, password) {
    SIGN UP
 ========================= */
 
-function signup(data) {
+async function signup(data) {
   const username =
     String(data.username || "").trim();
 
@@ -617,7 +943,7 @@ function signup(data) {
   }
 
   if (
-    username === ADMIN.username
+    username === adminAccount()?.username
   ) {
     return {
       success: false,
@@ -646,7 +972,7 @@ function signup(data) {
   dataUsers.push({
     id: uid(),
     username,
-    password,
+    ...(await makePasswordFields(password)),
     name,
     department,
     role: "bagian",
@@ -700,11 +1026,11 @@ function renderDashboard() {
       0
     );
 
+  /* Total tanpa Hilang */
   const total =
     totalGood +
     totalFair +
-    totalBad +
-    totalLost;
+    totalBad;
 
   setText(
     "statGood",
@@ -792,13 +1118,30 @@ function renderInventory() {
     return;
   }
 
-  const data =
+  let data =
     visibleItems();
+
+  /* Filter bagian hanya berlaku untuk Admin */
+  const filter =
+    $("inventoryDepartmentFilter");
+
+  if (
+    isAdmin() &&
+    filter &&
+    filter.value
+  ) {
+    data =
+      data.filter(
+        item =>
+          item.department ===
+          filter.value
+      );
+  }
 
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9">
+        <td colspan="11">
           Belum ada data inventaris.
         </td>
       </tr>
@@ -863,6 +1206,10 @@ function renderInventory() {
 
           <td>
             ${escapeHTML(item.description || "-")}
+          </td>
+
+          <td>
+            ${formatDateTime(item.updatedAt)}
           </td>
 
           <td>
@@ -1079,8 +1426,35 @@ function saveItemFromForm() {
       return;
     }
 
+    const borrowed =
+      borrowedCount(old.id);
+
+    if (
+      borrowed > 0 &&
+      department !== old.department
+    ) {
+      alert(
+        `Barang ini masih dipinjam ${borrowed} unit. Kembalikan dulu sebelum pindah bagian.`
+      );
+      return;
+    }
+
+    if (good + fair < borrowed) {
+      alert(
+        `Masih ada ${borrowed} unit yang dipinjam. Jumlah Baik + Kurang Baik tidak boleh kurang dari itu.`
+      );
+      return;
+    }
+
+    /* Pindah bagian = nomor barang ikut bagian baru */
+    const code =
+      department !== old.department
+        ? nextItemCode(department, old.id)
+        : old.code;
+
     data[index] = {
       ...old,
+      code,
       name,
       department,
       good,
@@ -1139,6 +1513,16 @@ function deleteItem(id) {
     item.department !== getUserDept()
   ) {
     alert("Akses ditolak.");
+    return;
+  }
+
+  const borrowed =
+    borrowedCount(item.id);
+
+  if (borrowed > 0) {
+    alert(
+      `Barang ini masih dipinjam ${borrowed} unit. Kembalikan dulu sebelum dihapus.`
+    );
     return;
   }
 
@@ -1201,7 +1585,11 @@ function renderLoans() {
           </td>
 
           <td>
-            ${escapeHTML(loan.itemName)}
+            ${
+              loan.itemCode
+                ? `${escapeHTML(loan.itemCode)} · `
+                : ""
+            }${escapeHTML(loan.itemName)}
           </td>
 
           <td>
@@ -1213,7 +1601,7 @@ function renderLoans() {
           </td>
 
           <td>
-            ${formatDate(loan.borrowDate)}
+            ${formatDateTime(loan.borrowDate)}
           </td>
 
           <td>
@@ -1226,6 +1614,11 @@ function renderLoans() {
 
           <td>
             ${escapeHTML(loan.status)}
+            ${
+              returned && loan.returnedAt
+                ? `<br><small>${formatDateTime(loan.returnedAt)}</small>`
+                : ""
+            }
           </td>
 
           <td>
@@ -1270,6 +1663,57 @@ function renderLoans() {
    MODAL PEMINJAMAN
 ========================= */
 
+/* Isi pilihan barang: hanya barang yang boleh dilihat,
+   lengkap dengan sisa yang bisa dipinjam */
+function populateLoanItems(selectedId = "", ignoreLoanId = null) {
+  const select =
+    $("loanItemId");
+
+  if (!select) {
+    return;
+  }
+
+  const options =
+    visibleItems()
+      .slice()
+      .sort((a, b) =>
+        String(a.code).localeCompare(String(b.code))
+      )
+      .map(item => {
+        const available =
+          availableCount(item, ignoreLoanId);
+
+        const label =
+          `${item.code} · ${item.name}` +
+          (isAdmin() ? ` (${item.department})` : "") +
+          ` · tersedia ${available}`;
+
+        const disabled =
+          available <= 0 &&
+          item.id !== selectedId;
+
+        return `
+          <option
+            value="${escapeHTML(item.id)}"
+            ${disabled ? "disabled" : ""}
+          >
+            ${escapeHTML(label)}
+          </option>
+        `;
+      })
+      .join("");
+
+  select.innerHTML = `
+    <option value="">
+      Pilih Barang
+    </option>
+    ${options}
+  `;
+
+  select.value =
+    selectedId || "";
+}
+
 function openLoanModal(id = null) {
   if (
     !isAdmin() &&
@@ -1302,12 +1746,12 @@ function openLoanModal(id = null) {
         )
       : null;
 
-  if (loan) {
-    setValue(
-      "loanItemName",
-      loan.itemName
-    );
+  populateLoanItems(
+    loan?.itemId || "",
+    loan?.id || null
+  );
 
+  if (loan) {
     setValue(
       "loanQuantity",
       loan.quantity
@@ -1318,9 +1762,12 @@ function openLoanModal(id = null) {
       loan.borrower
     );
 
+    /* Data lama hanya punya tanggal, tanpa jam */
     setValue(
       "loanBorrowDate",
-      loan.borrowDate
+      /^d{4}-d{2}-d{2}$/.test(loan.borrowDate || "")
+        ? `${loan.borrowDate}T00:00`
+        : loan.borrowDate
     );
 
     setValue(
@@ -1333,29 +1780,16 @@ function openLoanModal(id = null) {
       loan.note
     );
 
-    if (isAdmin()) {
-      setValue(
-        "loanDepartment",
-        loan.department
+    if (!loan.itemId) {
+      alert(
+        `Data lama: barang "${loan.itemName}" belum terhubung ke inventaris. Pilih barangnya dari daftar.`
       );
     }
   } else {
-    const today =
-      new Date()
-        .toISOString()
-        .slice(0, 10);
-
     setValue(
       "loanBorrowDate",
-      today
+      nowLocalInput()
     );
-
-    if (isAdmin()) {
-      setValue(
-        "loanDepartment",
-        ""
-      );
-    }
   }
 
   modal.classList.remove("hidden");
@@ -1373,10 +1807,8 @@ function closeLoanModal() {
 }
 
 function saveLoanFromForm() {
-  const itemName =
-    String(
-      getValue("loanItemName")
-    ).trim();
+  const itemId =
+    getValue("loanItemId");
 
   const quantity =
     normalizeNumber(
@@ -1399,17 +1831,11 @@ function saveLoanFromForm() {
       getValue("loanNote")
     ).trim();
 
-  const department =
-    isAdmin()
-      ? getValue("loanDepartment")
-      : getUserDept();
-
   if (
-    !itemName ||
+    !itemId ||
     quantity <= 0 ||
     !borrower ||
-    !borrowDate ||
-    !department
+    !borrowDate
   ) {
     alert(
       "Lengkapi data peminjaman."
@@ -1417,64 +1843,90 @@ function saveLoanFromForm() {
     return;
   }
 
+  /* Bagian peminjaman selalu ikut bagian pemilik barang */
+  const item =
+    visibleItems().find(
+      value =>
+        value.id === itemId
+    );
+
+  if (!item) {
+    alert("Barang tidak ditemukan.");
+    return;
+  }
+
   if (
-    !DEPTS.includes(department)
+    returnPlan &&
+    returnPlan < borrowDate.slice(0, 10)
   ) {
-    alert("Bagian tidak valid.");
+    alert(
+      "Rencana kembali tidak boleh sebelum tanggal pinjam."
+    );
     return;
   }
 
   const data =
     loans();
 
-  if (editingLoanId) {
-    const index =
-      data.findIndex(
-        loan =>
-          loan.id === editingLoanId
+  const old =
+    editingLoanId
+      ? data.find(
+          loan =>
+            loan.id === editingLoanId
+        )
+      : null;
+
+  if (editingLoanId && !old) {
+    alert("Data tidak ditemukan.");
+    return;
+  }
+
+  if (
+    old &&
+    !isAdmin() &&
+    old.department !== getUserDept()
+  ) {
+    alert("Akses ditolak.");
+    return;
+  }
+
+  /* Cek stok, kecuali pinjaman yang sudah dikembalikan */
+  if (
+    old?.status !== "Dikembalikan"
+  ) {
+    const available =
+      availableCount(item, editingLoanId);
+
+    if (quantity > available) {
+      alert(
+        `Stok tidak cukup. Yang bisa dipinjam: ${available} unit.`
       );
-
-    if (index < 0) {
-      alert("Data tidak ditemukan.");
       return;
     }
+  }
 
-    const old =
-      data[index];
+  const values = {
+    itemId: item.id,
+    itemCode: item.code,
+    itemName: item.name,
+    quantity,
+    borrower,
+    borrowDate,
+    returnPlan,
+    department: item.department,
+    note,
+    updatedAt: now()
+  };
 
-    if (
-      !isAdmin() &&
-      old.department !== getUserDept()
-    ) {
-      alert("Akses ditolak.");
-      return;
-    }
-
-    data[index] = {
-      ...old,
-      itemName,
-      quantity,
-      borrower,
-      borrowDate,
-      returnPlan,
-      department,
-      note,
-      updatedAt: now()
-    };
+  if (old) {
+    Object.assign(old, values);
   } else {
     data.push({
       id: uid(),
       code: nextLoanCode(),
-      itemName,
-      quantity,
-      borrower,
-      borrowDate,
-      returnPlan,
-      department,
+      ...values,
       status: "Dipinjam",
-      note,
       createdAt: now(),
-      updatedAt: now(),
       returnedAt: null
     });
   }
@@ -1893,17 +2345,66 @@ function setupLoginForm() {
 
   form.addEventListener(
     "submit",
-    event => {
+    async event => {
       event.preventDefault();
 
-      const result =
-        login(
-          getValue("loginUsername"),
-          getValue("loginPassword")
-        );
+      try {
+        const result =
+          await login(
+            getValue("loginUsername"),
+            getValue("loginPassword")
+          );
 
-      if (!result.success) {
+        if (!result.success) {
+          alert(result.message);
+        }
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  );
+}
+
+
+/* =========================
+   FORM BUAT ADMIN
+========================= */
+
+function setupAdminForm() {
+  const form =
+    $("setupForm");
+
+  if (!form) {
+    return;
+  }
+
+  form.addEventListener(
+    "submit",
+    async event => {
+      event.preventDefault();
+
+      try {
+        const result =
+          await setupAdmin({
+            username:
+              getValue("setupUsername"),
+
+            password:
+              getValue("setupPassword"),
+
+            confirm:
+              getValue("setupPasswordConfirm")
+          });
+
         alert(result.message);
+
+        if (result.success) {
+          form.reset();
+
+          showLoginPage();
+        }
+      } catch (error) {
+        alert(error.message);
       }
     }
   );
@@ -1924,23 +2425,30 @@ function setupSignupForm() {
 
   form.addEventListener(
     "submit",
-    event => {
+    async event => {
       event.preventDefault();
 
-      const result =
-        signup({
-          name:
-            getValue("signupName"),
+      let result;
 
-          username:
-            getValue("signupUsername"),
+      try {
+        result =
+          await signup({
+            name:
+              getValue("signupName"),
 
-          password:
-            getValue("signupPassword"),
+            username:
+              getValue("signupUsername"),
 
-          department:
-            getValue("signupDepartment")
-        });
+            password:
+              getValue("signupPassword"),
+
+            department:
+              getValue("signupDepartment")
+          });
+      } catch (error) {
+        alert(error.message);
+        return;
+      }
 
       alert(result.message);
 
@@ -2128,87 +2636,12 @@ function setupInventoryFilter() {
     return;
   }
 
-  // Filter bagian hanya ditampilkan untuk Admin
-  filter.parentElement.classList.toggle(
-    "hidden",
-    !isAdmin()
-  );
-
+  /* Tampil/sembunyi filter diatur lewat
+     data-admin-only di renderUserInfo() */
   filter.addEventListener(
     "change",
-    renderFilteredInventory
+    renderInventory
   );
-}
-
-function renderFilteredInventory() {
-  const tbody =
-    $("inventoryTableBody");
-
-  if (!tbody) {
-    return;
-  }
-
-  let data =
-    visibleItems();
-
-  const filter =
-    $("inventoryDepartmentFilter");
-
-  if (
-    filter &&
-    filter.value
-  ) {
-    if (isAdmin()) {
-      data =
-        data.filter(
-          item =>
-            item.department ===
-            filter.value
-        );
-    }
-  }
-
-  if (data.length === 0) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="10">
-          Tidak ada data.
-        </td>
-      </tr>
-    `;
-
-    return;
-  }
-
-  tbody.innerHTML =
-    data.map(item => `
-      <tr>
-        <td>${escapeHTML(item.code)}</td>
-        <td>${escapeHTML(item.name)}</td>
-        <td>${itemTotal(item)}</td>
-        <td>${normalizeNumber(item.good)}</td>
-        <td>${normalizeNumber(item.fair)}</td>
-        <td>${normalizeNumber(item.bad)}</td>
-        <td>${normalizeNumber(item.lost)}</td>
-        <td>${escapeHTML(item.department)}</td>
-        <td>${escapeHTML(item.description || "-")}</td>
-        <td>
-          <button
-            class="btn btn-small"
-            onclick="openItemModal('${item.id}')"
-          >
-            Edit
-          </button>
-
-          <button
-            class="btn btn-small btn-danger"
-            onclick="deleteItem('${item.id}')"
-          >
-            Hapus
-          </button>
-        </td>
-      </tr>
-    `).join("");
 }
 
 
@@ -2299,6 +2732,7 @@ function init() {
 
   populateSelects();
 
+  setupAdminForm();
   setupLoginForm();
   setupSignupForm();
   setupItemForm();
@@ -2309,6 +2743,8 @@ function init() {
 
   setupInventoryFilter();
   setupModalOutsideClick();
+
+  startClock();
 
   if (currentUser) {
     renderUserInfo();

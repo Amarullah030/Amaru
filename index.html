@@ -5,11 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HISADA Inventaris</title>
     <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 
 </head>
 
 <body>
+
+<!-- =====================================================
+     BUAT ADMIN PERTAMA
+====================================================== -->
+
+<section id="setupPage" class="page auth-page hidden">
+
+    <div class="auth-card">
+
+        <img
+            src="image1.png"
+            class="auth-logo"
+            alt="Logo HISADA"
+        >
+
+        <h1>HISADA</h1>
+
+        <p class="auth-subtitle">
+            Buat Akun Admin
+        </p>
+
+        <p class="auth-note">
+            Belum ada akun Admin di browser ini.
+            Buat sekali saja, lalu login seperti biasa.
+        </p>
+
+        <form id="setupForm">
+
+            <div class="form-group">
+                <label for="setupUsername">
+                    Username Admin
+                </label>
+
+                <input
+                    type="text"
+                    id="setupUsername"
+                    autocomplete="username"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="setupPassword">
+                    Password
+                </label>
+
+                <input
+                    type="password"
+                    id="setupPassword"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                >
+            </div>
+
+            <div class="form-group">
+                <label for="setupPasswordConfirm">
+                    Ulangi Password
+                </label>
+
+                <input
+                    type="password"
+                    id="setupPasswordConfirm"
+                    autocomplete="new-password"
+                    minlength="8"
+                    required
+                >
+            </div>
+
+            <button
+                type="submit"
+                class="primary-btn"
+            >
+                Buat Admin
+            </button>
+
+        </form>
+
+    </div>
+
+</section>
+
 
 <!-- =====================================================
      LOGIN
@@ -328,6 +410,14 @@
             </div>
 
 
+            <div
+                id="currentClock"
+                class="topbar-clock"
+            >
+                -
+            </div>
+
+
             <div class="topbar-user">
 
                 <span>
@@ -455,7 +545,7 @@
                     </strong>
 
                     <small>
-                        Unit
+                        Unit (tanpa hilang)
                     </small>
 
                 </div>
@@ -487,7 +577,6 @@
 
             </div>
 
-        </section>
 
             <!-- GRAFIK INVENTARIS HISADA -->
             <div class="charts-grid">
@@ -518,6 +607,7 @@
 
             </div>
 
+        </section>
 
         <!-- =================================================
              INVENTARIS
@@ -556,7 +646,7 @@
                 </div>
 
 
-                <div class="filter-bar">
+                <div class="filter-bar" data-admin-only>
 
                     <select
                         id="inventoryDepartmentFilter"
@@ -612,6 +702,10 @@
 
                                 <th>
                                     Keterangan
+                                </th>
+
+                                <th>
+                                    Diperbarui
                                 </th>
 
                                 <th>
@@ -698,7 +792,7 @@
                                 </th>
 
                                 <th>
-                                    Tanggal Pinjam
+                                    Waktu Pinjam
                                 </th>
 
                                 <th>
@@ -882,7 +976,7 @@
                 </div>
 
 
-                <div class="form-group full">
+                <div class="form-group full" data-admin-only>
 
                     <label for="itemDepartment">
                         Bagian
@@ -891,7 +985,6 @@
                     <select
                         id="itemDepartment"
                         data-departments
-                        required
                     >
                         <option value="">
                             Pilih Bagian
@@ -1053,15 +1146,23 @@
 
                 <div class="form-group full">
 
-                    <label for="loanItemName">
-                        Nama Barang
+                    <label for="loanItemId">
+                        Barang
                     </label>
 
-                    <input
-                        type="text"
-                        id="loanItemName"
+                    <select
+                        id="loanItemId"
                         required
                     >
+                        <option value="">
+                            Pilih Barang
+                        </option>
+                    </select>
+
+                    <small id="loanItemHint">
+                        Hanya barang kondisi Baik dan Kurang Baik
+                        yang bisa dipinjam.
+                    </small>
 
                 </div>
 
@@ -1101,11 +1202,11 @@
                 <div class="form-group">
 
                     <label for="loanBorrowDate">
-                        Tanggal Pinjam
+                        Waktu Pinjam
                     </label>
 
                     <input
-                        type="date"
+                        type="datetime-local"
                         id="loanBorrowDate"
                         required
                     >
@@ -1123,25 +1224,6 @@
                         type="date"
                         id="loanReturnPlan"
                     >
-
-                </div>
-
-
-                <div class="form-group full">
-
-                    <label for="loanDepartment">
-                        Bagian
-                    </label>
-
-                    <select
-                        id="loanDepartment"
-                        data-departments
-                        required
-                    >
-                        <option value="">
-                            Pilih Bagian
-                        </option>
-                    </select>
 
                 </div>
 
