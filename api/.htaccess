@@ -1,0 +1,4 @@
+# Hanya index.php yang boleh dibuka langsung
+<FilesMatch "^(inti|config|config\.example)\.php$">
+  Require all denied
+</FilesMatch>

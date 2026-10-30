@@ -1,5 +1,5 @@
 /* =========================================================
-   HISADA INVENTARIS V4
+   HISADA INVENTARIS V5 (data di server PHP + MySQL)
    ========================================================= */
 
 "use strict";
@@ -21,18 +21,22 @@ const DEPTS = [
   "Kesenian"
 ];
 
-/* Akun Admin tidak lagi ditulis di kode.
-   Dibuat sekali lewat layar "Buat Akun Admin". */
-const ADMIN_KEY = "hisada_admin_v4";
+/* Alamat API PHP (folder api/ di hosting yang sama) */
+const API_URL = "api/";
 
 const TIME_ZONE = "Asia/Jakarta";
 
-const USERS_KEY = "hisada_users_v4";
-const ITEMS_KEY = "hisada_items_v4";
-const LOANS_KEY = "hisada_loans_v4";
-const SESSION_KEY = "hisada_session_v4";
-
 let currentUser = null;
+
+/* Data dari server untuk akun yang sedang login */
+let serverData = {
+  barang: [],
+  peminjaman: [],
+  akunBagian: []
+};
+
+/* Sudah ada akun Admin di database? */
+let adminExists = true;
 let editingItemId = null;
 let editingLoanId = null;
 
@@ -57,19 +61,6 @@ function escapeHTML(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
-}
-
-function uid() {
-  if (window.crypto && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-
-  return Date.now().toString(36) +
-    Math.random().toString(36).slice(2);
-}
-
-function now() {
-  return new Date().toISOString();
 }
 
 /* Waktu sekarang (WIB) untuk input datetime-local,
@@ -205,265 +196,127 @@ function getUserDept() {
 
 
 /* =========================
-   LOCAL STORAGE
+   API SERVER
 ========================= */
 
-function loadJSON(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-
-    if (!raw) {
-      return fallback;
+/* Panggil API PHP. Kalau gagal, lempar Error berisi pesan server. */
+async function api(aksi, data = null) {
+  const options = {
+    method: data ? "POST" : "GET",
+    credentials: "same-origin",
+    headers: {
+      "Accept": "application/json"
     }
+  };
 
-    const data = JSON.parse(raw);
-
-    return data ?? fallback;
-  } catch (error) {
-    console.error("Gagal membaca:", key, error);
-    return fallback;
+  if (data) {
+    options.headers["Content-Type"] = "application/json";
+    /* Penanda bahwa permintaan berasal dari aplikasi ini */
+    options.headers["X-HISADA"] = "1";
+    options.body = JSON.stringify(data);
   }
+
+  let response;
+
+  try {
+    response = await fetch(
+      `${API_URL}?aksi=${encodeURIComponent(aksi)}`,
+      options
+    );
+  } catch (error) {
+    throw new Error(
+      "Tidak bisa terhubung ke server. Cek koneksi internet."
+    );
+  }
+
+  let result = null;
+
+  try {
+    result = await response.json();
+  } catch (error) {
+    result = null;
+  }
+
+  /* Sesi habis / akun dinonaktifkan → kembali ke login */
+  if (response.status === 401 && currentUser) {
+    currentUser = null;
+    showLoginPage();
+  }
+
+  if (!result || !result.ok) {
+    throw new Error(
+      result?.pesan || "Terjadi kesalahan di server."
+    );
+  }
+
+  return result;
 }
 
-function saveJSON(key, data) {
-  localStorage.setItem(
-    key,
-    JSON.stringify(data)
-  );
+/* Ambil ulang semua data yang boleh dilihat akun ini */
+async function refreshData() {
+  const result =
+    await api("data");
+
+  currentUser =
+    result.akun;
+
+  serverData = {
+    barang: result.barang || [],
+    peminjaman: result.peminjaman || [],
+    akunBagian: result.akunBagian || []
+  };
+}
+
+/* Simpan perubahan lewat API, lalu muat ulang dan gambar ulang
+   semua tampilan. Mengembalikan true kalau berhasil. */
+async function saveToServer(aksi, data) {
+  try {
+    await api(aksi, data);
+    await refreshData();
+  } catch (error) {
+    alert(error.message);
+    return false;
+  }
+
+  renderAll();
+  return true;
+}
+
+function renderAll() {
+  renderDashboard();
+  renderInventory();
+  renderLoans();
+  renderAccounts();
 }
 
 function users() {
-  return loadJSON(USERS_KEY, []);
-}
-
-function saveUsers(data) {
-  saveJSON(USERS_KEY, data);
+  return serverData.akunBagian;
 }
 
 function items() {
-  return loadJSON(ITEMS_KEY, []);
-}
-
-function saveItems(data) {
-  saveJSON(ITEMS_KEY, data);
+  return serverData.barang;
 }
 
 function loans() {
-  return loadJSON(LOANS_KEY, []);
+  return serverData.peminjaman;
 }
 
-function saveLoans(data) {
-  saveJSON(LOANS_KEY, data);
-}
-
-function adminAccount() {
-  return loadJSON(ADMIN_KEY, null);
-}
-
-
-/* =========================
-   PASSWORD (HASH)
-========================= */
-
-/* Password disimpan sebagai hash SHA-256 + salt,
-   bukan teks aslinya */
-async function hashPassword(password, salt) {
-  if (!window.crypto?.subtle) {
-    throw new Error(
-      "Browser ini tidak mendukung enkripsi. Buka lewat https (GitHub Pages)."
-    );
+async function logout() {
+  try {
+    await api("logout", {});
+  } catch (error) {
+    /* Tetap keluar di tampilan walau server tidak menjawab */
   }
-
-  const bytes =
-    new TextEncoder().encode(
-      `${salt}:${password}`
-    );
-
-  const digest =
-    await crypto.subtle.digest(
-      "SHA-256",
-      bytes
-    );
-
-  return Array.from(
-    new Uint8Array(digest)
-  )
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-async function makePasswordFields(password) {
-  const passwordSalt =
-    uid();
-
-  return {
-    passwordSalt,
-    passwordHash:
-      await hashPassword(password, passwordSalt)
-  };
-}
-
-/* Mendukung akun lama yang passwordnya
-   masih tersimpan apa adanya */
-async function checkPassword(account, password) {
-  if (account.passwordHash) {
-    return (
-      await hashPassword(
-        password,
-        account.passwordSalt
-      )
-    ) === account.passwordHash;
-  }
-
-  return account.password === password;
-}
-
-
-/* =========================
-   SESSION
-========================= */
-
-/* Salinan data user tanpa password */
-function publicUser(user) {
-  const copy = {
-    ...user
-  };
-
-  delete copy.password;
-  delete copy.passwordHash;
-  delete copy.passwordSalt;
-
-  return copy;
-}
-
-/* Session hanya menyimpan username */
-function saveSession() {
-  if (currentUser) {
-    localStorage.setItem(
-      SESSION_KEY,
-      JSON.stringify({
-        username: currentUser.username
-      })
-    );
-  } else {
-    localStorage.removeItem(SESSION_KEY);
-  }
-}
-
-/* Data user selalu dicek ulang, jadi akun yang
-   dinonaktifkan Admin langsung keluar */
-function loadSession() {
-  const saved =
-    loadJSON(SESSION_KEY, null);
-
-  const username =
-    saved?.username || "";
 
   currentUser = null;
 
-  const admin =
-    adminAccount();
-
-  if (
-    admin &&
-    username === admin.username
-  ) {
-    currentUser =
-      publicUser(admin);
-  } else if (username) {
-    const user =
-      users().find(
-        item =>
-          item.username === username
-      );
-
-    if (
-      user &&
-      user.status === "approved"
-    ) {
-      currentUser =
-        publicUser(user);
-    }
-  }
-
-  saveSession();
-}
-
-function logout() {
-  currentUser = null;
-  saveSession();
+  serverData = {
+    barang: [],
+    peminjaman: [],
+    akunBagian: []
+  };
 
   showLoginPage();
-}
-
-
-/* =========================
-   DATA MIGRASI
-========================= */
-
-function migrateOldData() {
-  const oldItems =
-    loadJSON("hisada_items_v3", null);
-
-  const newItems =
-    localStorage.getItem(ITEMS_KEY);
-
-  if (
-    Array.isArray(oldItems) &&
-    !newItems
-  ) {
-    const converted = oldItems.map(item => {
-      const quantity =
-        normalizeNumber(item.quantity);
-
-      let good = 0;
-      let fair = 0;
-      let bad = 0;
-      let lost = 0;
-
-      switch (item.condition) {
-        case "Baik":
-          good = quantity;
-          break;
-
-        case "Kurang Baik":
-          fair = quantity;
-          break;
-
-        case "Rusak Berat":
-          bad = quantity;
-          break;
-
-        case "Hilang":
-          lost = quantity;
-          break;
-
-        default:
-          good = quantity;
-      }
-
-      return {
-        id: item.id || uid(),
-        code: item.code || "",
-        department:
-          item.department || "",
-        name:
-          item.name || item.itemName || "",
-        good,
-        fair,
-        bad,
-        lost,
-        description:
-          item.description || "",
-        createdAt:
-          item.createdAt || now(),
-        updatedAt:
-          item.updatedAt || now()
-      };
-    });
-
-    saveItems(converted);
-  }
 }
 
 
@@ -494,104 +347,6 @@ function visibleLoans() {
   return data.filter(
     loan =>
       loan.department === getUserDept()
-  );
-}
-
-
-/* =========================
-   NOMOR BARANG
-========================= */
-
-function deptCode(dept) {
-  const codes = {
-    "Logistik": "LOG",
-    "Bahasa": "BHS",
-    "Kesehatan": "KES",
-    "Ta'mir Masjid": "TMR",
-    "Keamanan": "KAM",
-    "Pramuka": "PRM",
-    "Olahraga": "OLR",
-    "Dewan Harian": "DWH",
-    "Dapur": "DAP",
-    "Kesenian": "KSN"
-  };
-
-  return codes[dept] || "HSD";
-}
-
-function nextItemCode(dept, ignoreId = null) {
-  const prefix =
-    deptCode(dept) + "-";
-
-  const data = items();
-
-  let highest = 0;
-
-  data.forEach(item => {
-    if (
-      item.id === ignoreId ||
-      item.department !== dept
-    ) {
-      return;
-    }
-
-    const code =
-      String(item.code || "");
-
-    if (!code.startsWith(prefix)) {
-      return;
-    }
-
-    const number =
-      parseInt(
-        code.slice(prefix.length),
-        10
-      );
-
-    if (
-      Number.isFinite(number) &&
-      number > highest
-    ) {
-      highest = number;
-    }
-  });
-
-  return (
-    prefix +
-    String(highest + 1).padStart(3, "0")
-  );
-}
-
-function nextLoanCode() {
-  const data = loans();
-
-  let highest = 0;
-
-  data.forEach(loan => {
-    const code =
-      String(loan.code || "");
-
-    if (!code.startsWith("PJM-")) {
-      return;
-    }
-
-    const number =
-      parseInt(
-        code.slice(4),
-        10
-      );
-
-    if (
-      Number.isFinite(number) &&
-      number > highest
-    ) {
-      highest = number;
-    }
-  });
-
-  return (
-    "PJM-" +
-    String(highest + 1).padStart(3, "0")
   );
 }
 
@@ -656,9 +411,9 @@ function hideAllPages() {
 function showLoginPage() {
   hideAllPages();
 
-  /* Belum ada Admin di browser ini */
+  /* Belum ada Admin di database */
   const page =
-    adminAccount()
+    adminExists
       ? $("loginPage")
       : $("setupPage");
 
@@ -746,72 +501,22 @@ function showSection(section) {
 ========================= */
 
 async function setupAdmin(data) {
-  if (adminAccount()) {
+  try {
+    const result =
+      await api("setup_admin", data);
+
+    adminExists = true;
+
+    return {
+      success: true,
+      message: result.pesan
+    };
+  } catch (error) {
     return {
       success: false,
-      message:
-        "Akun Admin sudah ada."
+      message: error.message
     };
   }
-
-  const username =
-    String(data.username || "").trim();
-
-  const password =
-    String(data.password || "");
-
-  if (!username) {
-    return {
-      success: false,
-      message:
-        "Username wajib diisi."
-    };
-  }
-
-  if (password.length < 8) {
-    return {
-      success: false,
-      message:
-        "Password minimal 8 karakter."
-    };
-  }
-
-  if (password !== data.confirm) {
-    return {
-      success: false,
-      message:
-        "Ulangi password tidak sama."
-    };
-  }
-
-  if (
-    users().some(
-      user =>
-        user.username === username
-    )
-  ) {
-    return {
-      success: false,
-      message:
-        "Username sudah dipakai akun bagian."
-    };
-  }
-
-  saveJSON(ADMIN_KEY, {
-    id: uid(),
-    username,
-    ...(await makePasswordFields(password)),
-    name: "Admin HISADA",
-    role: "admin",
-    status: "approved",
-    createdAt: now()
-  });
-
-  return {
-    success: true,
-    message:
-      "Akun Admin berhasil dibuat. Silakan login."
-  };
 }
 
 
@@ -820,92 +525,22 @@ async function setupAdmin(data) {
 ========================= */
 
 async function login(username, password) {
-  username =
-    String(username || "").trim();
+  try {
+    await api("login", {
+      username,
+      password
+    });
 
-  password =
-    String(password || "");
-
-  const admin =
-    adminAccount();
-
-  if (
-    admin &&
-    username === admin.username
-  ) {
-    if (
-      !(await checkPassword(admin, password))
-    ) {
-      return {
-        success: false,
-        message: "Password salah."
-      };
-    }
-
-    currentUser =
-      publicUser(admin);
-
-    saveSession();
-    showAppPage();
-    return {
-      success: true
-    };
-  }
-
-  const dataUsers =
-    users();
-
-  const user =
-    dataUsers.find(
-      item =>
-        item.username === username
-    );
-
-  if (!user) {
+    await refreshData();
+  } catch (error) {
     return {
       success: false,
-      message: "Username tidak ditemukan."
+      message: error.message
     };
   }
 
-  if (
-    !(await checkPassword(user, password))
-  ) {
-    return {
-      success: false,
-      message: "Password salah."
-    };
-  }
-
-  if (
-    user.status !== "approved"
-  ) {
-    return {
-      success: false,
-      message:
-        user.status === "pending"
-          ? "Akun masih menunggu persetujuan Admin."
-          : "Akun tidak disetujui."
-    };
-  }
-
-  /* Akun lama: ganti password teks asli menjadi hash */
-  if (!user.passwordHash) {
-    Object.assign(
-      user,
-      await makePasswordFields(password)
-    );
-
-    delete user.password;
-
-    saveUsers(dataUsers);
-  }
-
-  currentUser =
-    publicUser(user);
-
-  saveSession();
   showAppPage();
+  renderAll();
 
   return {
     success: true
@@ -918,84 +553,20 @@ async function login(username, password) {
 ========================= */
 
 async function signup(data) {
-  const username =
-    String(data.username || "").trim();
+  try {
+    const result =
+      await api("daftar", data);
 
-  const password =
-    String(data.password || "");
-
-  const name =
-    String(data.name || "").trim();
-
-  const department =
-    String(data.department || "").trim();
-
-  if (
-    !username ||
-    !password ||
-    !name ||
-    !department
-  ) {
+    return {
+      success: true,
+      message: result.pesan
+    };
+  } catch (error) {
     return {
       success: false,
-      message:
-        "Semua data harus diisi."
+      message: error.message
     };
   }
-
-  if (!DEPTS.includes(department)) {
-    return {
-      success: false,
-      message:
-        "Bagian tidak valid."
-    };
-  }
-
-  if (
-    username === adminAccount()?.username
-  ) {
-    return {
-      success: false,
-      message:
-        "Username tersebut khusus Admin."
-    };
-  }
-
-  const dataUsers =
-    users();
-
-  const exists =
-    dataUsers.some(
-      user =>
-        user.username === username
-    );
-
-  if (exists) {
-    return {
-      success: false,
-      message:
-        "Username sudah digunakan."
-    };
-  }
-
-  dataUsers.push({
-    id: uid(),
-    username,
-    ...(await makePasswordFields(password)),
-    name,
-    department,
-    role: "bagian",
-    status: "pending",
-    createdAt: now()
-  });
-
-  saveUsers(dataUsers);
-
-  return {
-    success: true,
-    message:
-      "Pendaftaran berhasil. Tunggu persetujuan Admin."
-  };
 }
 
 
@@ -1365,7 +936,7 @@ function closeItemModal() {
   }
 }
 
-function saveItemFromForm() {
+async function saveItemFromForm() {
   if (
     !isAdmin() &&
     !isSectionUser()
@@ -1378,135 +949,27 @@ function saveItemFromForm() {
       getValue("itemName")
     ).trim();
 
-  const department =
-    isAdmin()
-      ? getValue("itemDepartment")
-      : getUserDept();
-
   if (!name) {
     alert("Nama barang wajib diisi.");
     return;
   }
 
-  if (
-    !DEPTS.includes(department)
-  ) {
-    alert("Bagian tidak valid.");
-    return;
-  }
-
-  const good =
-    normalizeNumber(
-      getValue("itemGood")
-    );
-
-  const fair =
-    normalizeNumber(
-      getValue("itemFair")
-    );
-
-  const bad =
-    normalizeNumber(
-      getValue("itemBad")
-    );
-
-  const lost =
-    normalizeNumber(
-      getValue("itemLost")
-    );
-
-  const description =
-    String(
-      getValue("itemDescription")
-    ).trim();
-
-  const data =
-    items();
-
-  if (editingItemId) {
-    const index =
-      data.findIndex(
-        item =>
-          item.id === editingItemId
-      );
-
-    if (index < 0) {
-      alert("Data tidak ditemukan.");
-      return;
-    }
-
-    const old =
-      data[index];
-
-    if (
-      !isAdmin() &&
-      old.department !== getUserDept()
-    ) {
-      alert("Akses ditolak.");
-      return;
-    }
-
-    const borrowed =
-      borrowedCount(old.id);
-
-    if (
-      borrowed > 0 &&
-      department !== old.department
-    ) {
-      alert(
-        `Barang ini masih dipinjam ${borrowed} unit. Kembalikan dulu sebelum pindah bagian.`
-      );
-      return;
-    }
-
-    if (good + fair < borrowed) {
-      alert(
-        `Masih ada ${borrowed} unit yang dipinjam. Jumlah Baik + Kurang Baik tidak boleh kurang dari itu.`
-      );
-      return;
-    }
-
-    /* Pindah bagian = nomor barang ikut bagian baru */
-    const code =
-      department !== old.department
-        ? nextItemCode(department, old.id)
-        : old.code;
-
-    data[index] = {
-      ...old,
-      code,
+  /* Bagian untuk akun bagian ditentukan server */
+  const saved =
+    await saveToServer("barang_simpan", {
+      id: editingItemId || 0,
       name,
-      department,
-      good,
-      fair,
-      bad,
-      lost,
-      description,
-      updatedAt: now()
-    };
-  } else {
-    data.push({
-      id: uid(),
-      code:
-        nextItemCode(department),
-      name,
-      department,
-      good,
-      fair,
-      bad,
-      lost,
-      description,
-      createdAt: now(),
-      updatedAt: now()
+      department: getValue("itemDepartment"),
+      good: getValue("itemGood"),
+      fair: getValue("itemFair"),
+      bad: getValue("itemBad"),
+      lost: getValue("itemLost"),
+      description: getValue("itemDescription")
     });
+
+  if (saved) {
+    closeItemModal();
   }
-
-  saveItems(data);
-
-  closeItemModal();
-
-  renderInventory();
-  renderDashboard();
 }
 
 
@@ -1514,35 +977,14 @@ function saveItemFromForm() {
    HAPUS INVENTARIS
 ========================= */
 
-function deleteItem(id) {
-  const data =
-    items();
-
+async function deleteItem(id) {
   const item =
-    data.find(
+    items().find(
       value =>
         value.id === id
     );
 
   if (!item) {
-    return;
-  }
-
-  if (
-    !isAdmin() &&
-    item.department !== getUserDept()
-  ) {
-    alert("Akses ditolak.");
-    return;
-  }
-
-  const borrowed =
-    borrowedCount(item.id);
-
-  if (borrowed > 0) {
-    alert(
-      `Barang ini masih dipinjam ${borrowed} unit. Kembalikan dulu sebelum dihapus.`
-    );
     return;
   }
 
@@ -1554,15 +996,9 @@ function deleteItem(id) {
     return;
   }
 
-  saveItems(
-    data.filter(
-      value =>
-        value.id !== id
-    )
-  );
-
-  renderInventory();
-  renderDashboard();
+  await saveToServer("barang_hapus", {
+    id
+  });
 }
 
 
@@ -1830,7 +1266,7 @@ function closeLoanModal() {
   }
 }
 
-function saveLoanFromForm() {
+async function saveLoanFromForm() {
   const itemId =
     getValue("loanItemId");
 
@@ -1850,11 +1286,6 @@ function saveLoanFromForm() {
   const returnPlan =
     getValue("loanReturnPlan");
 
-  const note =
-    String(
-      getValue("loanNote")
-    ).trim();
-
   if (
     !itemId ||
     quantity <= 0 ||
@@ -1864,18 +1295,6 @@ function saveLoanFromForm() {
     alert(
       "Lengkapi data peminjaman."
     );
-    return;
-  }
-
-  /* Bagian peminjaman selalu ikut bagian pemilik barang */
-  const item =
-    visibleItems().find(
-      value =>
-        value.id === itemId
-    );
-
-  if (!item) {
-    alert("Barang tidak ditemukan.");
     return;
   }
 
@@ -1889,77 +1308,21 @@ function saveLoanFromForm() {
     return;
   }
 
-  const data =
-    loans();
-
-  const old =
-    editingLoanId
-      ? data.find(
-          loan =>
-            loan.id === editingLoanId
-        )
-      : null;
-
-  if (editingLoanId && !old) {
-    alert("Data tidak ditemukan.");
-    return;
-  }
-
-  if (
-    old &&
-    !isAdmin() &&
-    old.department !== getUserDept()
-  ) {
-    alert("Akses ditolak.");
-    return;
-  }
-
-  /* Cek stok, kecuali pinjaman yang sudah dikembalikan */
-  if (
-    old?.status !== "Dikembalikan"
-  ) {
-    const available =
-      availableCount(item, editingLoanId);
-
-    if (quantity > available) {
-      alert(
-        `Stok tidak cukup. Yang bisa dipinjam: ${available} unit.`
-      );
-      return;
-    }
-  }
-
-  const values = {
-    itemId: item.id,
-    itemCode: item.code,
-    itemName: item.name,
-    quantity,
-    borrower,
-    borrowDate,
-    returnPlan,
-    department: item.department,
-    note,
-    updatedAt: now()
-  };
-
-  if (old) {
-    Object.assign(old, values);
-  } else {
-    data.push({
-      id: uid(),
-      code: nextLoanCode(),
-      ...values,
-      status: "Dipinjam",
-      createdAt: now(),
-      returnedAt: null
+  /* Stok & bagian dicek ulang oleh server */
+  const saved =
+    await saveToServer("pinjam_simpan", {
+      id: editingLoanId || 0,
+      itemId,
+      quantity,
+      borrower,
+      borrowDate,
+      returnPlan,
+      note: getValue("loanNote")
     });
+
+  if (saved) {
+    closeLoanModal();
   }
-
-  saveLoans(data);
-
-  closeLoanModal();
-  renderLoans();
-  renderDashboard();
 }
 
 
@@ -1967,37 +1330,7 @@ function saveLoanFromForm() {
    KEMBALIKAN BARANG
 ========================= */
 
-function returnLoan(id) {
-  const data =
-    loans();
-
-  const index =
-    data.findIndex(
-      loan =>
-        loan.id === id
-    );
-
-  if (index < 0) {
-    return;
-  }
-
-  const loan =
-    data[index];
-
-  if (
-    !isAdmin() &&
-    loan.department !== getUserDept()
-  ) {
-    alert("Akses ditolak.");
-    return;
-  }
-
-  if (
-    loan.status === "Dikembalikan"
-  ) {
-    return;
-  }
-
+async function returnLoan(id) {
   if (
     !confirm(
       "Tandai peminjaman ini sebagai dikembalikan?"
@@ -2006,40 +1339,12 @@ function returnLoan(id) {
     return;
   }
 
-  data[index] = {
-    ...loan,
-    status: "Dikembalikan",
-    returnedAt: now(),
-    updatedAt: now()
-  };
-
-  saveLoans(data);
-
-  renderLoans();
+  await saveToServer("pinjam_kembali", {
+    id
+  });
 }
 
-function deleteLoan(id) {
-  const data =
-    loans();
-
-  const loan =
-    data.find(
-      value =>
-        value.id === id
-    );
-
-  if (!loan) {
-    return;
-  }
-
-  if (
-    !isAdmin() &&
-    loan.department !== getUserDept()
-  ) {
-    alert("Akses ditolak.");
-    return;
-  }
-
+async function deleteLoan(id) {
   if (
     !confirm(
       "Hapus data peminjaman ini?"
@@ -2048,14 +1353,9 @@ function deleteLoan(id) {
     return;
   }
 
-  saveLoans(
-    data.filter(
-      value =>
-        value.id !== id
-    )
-  );
-
-  renderLoans();
+  await saveToServer("pinjam_hapus", {
+    id
+  });
 }
 
 
@@ -2178,47 +1478,19 @@ function renderAccounts() {
   runAnimation("rows", tbody);
 }
 
-function approveUser(id) {
+async function approveUser(id) {
   if (!isAdmin()) {
     return;
   }
 
-  const data =
-    users();
-
-  const index =
-    data.findIndex(
-      user =>
-        user.id === id
-    );
-
-  if (index < 0) {
-    return;
-  }
-
-  data[index].status =
-    "approved";
-
-  saveUsers(data);
-
-  renderAccounts();
+  await saveToServer("akun_status", {
+    id,
+    status: "approved"
+  });
 }
 
-function rejectUser(id) {
+async function rejectUser(id) {
   if (!isAdmin()) {
-    return;
-  }
-
-  const data =
-    users();
-
-  const index =
-    data.findIndex(
-      user =>
-        user.id === id
-    );
-
-  if (index < 0) {
     return;
   }
 
@@ -2230,12 +1502,10 @@ function rejectUser(id) {
     return;
   }
 
-  data[index].status =
-    "rejected";
-
-  saveUsers(data);
-
-  renderAccounts();
+  await saveToServer("akun_status", {
+    id,
+    status: "rejected"
+  });
 }
 
 
@@ -2765,11 +2035,7 @@ function setupModalOutsideClick() {
    INISIALISASI
 ========================= */
 
-function init() {
-  migrateOldData();
-
-  loadSession();
-
+async function init() {
   populateSelects();
 
   setupAdminForm();
@@ -2786,17 +2052,27 @@ function init() {
 
   startClock();
 
+  /* Sudah login? Sudah ada Admin? */
+  try {
+    const status =
+      await api("status");
+
+    adminExists =
+      status.adaAdmin;
+
+    if (status.akun) {
+      await refreshData();
+    }
+  } catch (error) {
+    alert(error.message);
+  }
+
   if (currentUser) {
-    renderUserInfo();
     showAppPage();
+    renderAll();
   } else {
     showLoginPage();
   }
-
-  renderDashboard();
-  renderInventory();
-  renderLoans();
-  renderAccounts();
 }
 
 
