@@ -1582,3 +1582,13 @@ td .btn + .btn {
     order: 3;
   }
 }
+
+
+/* =========================================================
+   ANIMASI (anime.js)
+   ========================================================= */
+
+/* Animasi modal diambil alih anime.js (lihat animasi.js) */
+.anime-ready .modal-card {
+  animation: none;
+}

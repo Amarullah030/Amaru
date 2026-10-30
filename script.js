@@ -45,6 +45,11 @@ function $(id) {
   return document.getElementById(id);
 }
 
+/* Jalankan animasi dari animasi.js (kalau anime.js termuat) */
+function runAnimation(name, ...args) {
+  window.Animasi?.[name]?.(...args);
+}
+
 function escapeHTML(value) {
   return String(value ?? "")
     .replace(/&/g, "&amp;")
@@ -667,6 +672,8 @@ function showLoginPage() {
   if (app) {
     app.classList.add("hidden");
   }
+
+  runAnimation("authCard", page);
 }
 
 function showAppPage() {
@@ -698,6 +705,8 @@ function showSection(section) {
 
   if (target) {
     target.classList.remove("hidden");
+
+    runAnimation("section", target);
   }
 
   document
@@ -1057,6 +1066,13 @@ function renderDashboard() {
     total
   );
 
+  /* Angka statistik berhitung naik/turun */
+  runAnimation("countUp", "statGood", totalGood);
+  runAnimation("countUp", "statFair", totalFair);
+  runAnimation("countUp", "statBad", totalBad);
+  runAnimation("countUp", "statLost", totalLost);
+  runAnimation("countUp", "statTotal", total);
+
   setText(
     "dashboardTitle",
     isAdmin()
@@ -1222,6 +1238,8 @@ function renderInventory() {
         </tr>
       `;
     }).join("");
+
+  runAnimation("rows", tbody);
 }
 
 
@@ -1332,6 +1350,8 @@ function openItemModal(id = null) {
   }
 
   modal.classList.remove("hidden");
+
+  runAnimation("modal", modal);
 }
 
 function closeItemModal() {
@@ -1656,6 +1676,8 @@ function renderLoans() {
         </tr>
       `;
     }).join("");
+
+  runAnimation("rows", tbody);
 }
 
 
@@ -1793,6 +1815,8 @@ function openLoanModal(id = null) {
   }
 
   modal.classList.remove("hidden");
+
+  runAnimation("modal", modal);
 }
 
 function closeLoanModal() {
@@ -2150,6 +2174,8 @@ function renderAccounts() {
         </tr>
       `;
     }).join("");
+
+  runAnimation("rows", tbody);
 }
 
 function approveUser(id) {
@@ -2356,9 +2382,11 @@ function setupLoginForm() {
           );
 
         if (!result.success) {
+          runAnimation("shake", form.closest(".auth-card"));
           alert(result.message);
         }
       } catch (error) {
+        runAnimation("shake", form.closest(".auth-card"));
         alert(error.message);
       }
     }
@@ -2396,6 +2424,10 @@ function setupAdminForm() {
               getValue("setupPasswordConfirm")
           });
 
+        if (!result.success) {
+          runAnimation("shake", form.closest(".auth-card"));
+        }
+
         alert(result.message);
 
         if (result.success) {
@@ -2404,6 +2436,7 @@ function setupAdminForm() {
           showLoginPage();
         }
       } catch (error) {
+        runAnimation("shake", form.closest(".auth-card"));
         alert(error.message);
       }
     }
@@ -2446,8 +2479,13 @@ function setupSignupForm() {
               getValue("signupDepartment")
           });
       } catch (error) {
+        runAnimation("shake", form.closest(".auth-card"));
         alert(error.message);
         return;
+      }
+
+      if (!result.success) {
+        runAnimation("shake", form.closest(".auth-card"));
       }
 
       alert(result.message);
@@ -2658,6 +2696,8 @@ function showSignupPage() {
   if (page) {
     page.classList.remove("hidden");
   }
+
+  runAnimation("authCard", page);
 }
 
 
