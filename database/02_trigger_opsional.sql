@@ -7,11 +7,11 @@
 -- langsung oleh database, jadi tetap aman walau ada kode PHP
 -- yang lupa mengecek:
 --   1. Pinjam tidak boleh melebihi sisa yang tersedia
---      (Baik + Kurang Baik − yang sedang dipinjam).
+--      (hanya kondisi Baik − yang sedang dipinjam).
 --   2. Bagian, kode, dan nama barang di peminjaman otomatis
 --      diisi dari data barangnya.
 --   3. Barang yang masih dipinjam tidak bisa dihapus atau
---      dipindah bagian, dan Baik + Kurang Baik-nya tidak bisa
+--      dipindah bagian, dan jumlah Baik-nya tidak bisa
 --      diturunkan di bawah jumlah yang dipinjam.
 --
 -- Kalau hosting menolak trigger (error "TRIGGER command denied"
@@ -38,7 +38,7 @@ BEGIN
 
   IF NEW.barang_id IS NOT NULL THEN
     SELECT bagian_id, kode, nama,
-           jumlah_baik + jumlah_kurang_baik
+           jumlah_baik
       INTO v_bagian, v_kode, v_nama, v_bisa
       FROM barang
      WHERE id = NEW.barang_id
@@ -83,7 +83,7 @@ BEGIN
        NEW.status <> OLD.status
      ) THEN
     SELECT bagian_id, kode, nama,
-           jumlah_baik + jumlah_kurang_baik
+           jumlah_baik
       INTO v_bagian, v_kode, v_nama, v_bisa
       FROM barang
      WHERE id = NEW.barang_id
@@ -127,9 +127,9 @@ BEGIN
       SET MESSAGE_TEXT = 'Barang masih dipinjam, kembalikan dulu sebelum pindah bagian.';
   END IF;
 
-  IF NEW.jumlah_baik + NEW.jumlah_kurang_baik < v_dipinjam THEN
+  IF NEW.jumlah_baik < v_dipinjam THEN
     SIGNAL SQLSTATE '45000'
-      SET MESSAGE_TEXT = 'Baik + Kurang Baik tidak boleh kurang dari jumlah yang dipinjam.';
+      SET MESSAGE_TEXT = 'Jumlah Baik tidak boleh kurang dari jumlah yang dipinjam.';
   END IF;
 END$$
 

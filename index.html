@@ -545,7 +545,7 @@
                     </strong>
 
                     <small>
-                        Unit (tanpa hilang)
+                        Unit
                     </small>
 
                 </div>
@@ -646,11 +646,23 @@
                 </div>
 
 
-                <div class="filter-bar" data-admin-only>
+                <div class="filter-bar">
+
+                    <!-- PENCARIAN BARANG -->
+                    <input
+                        type="search"
+                        id="inventorySearch"
+                        class="search-input"
+                        placeholder="🔍 Cari barang: nama, kode, bagian, keterangan…"
+                        autocomplete="off"
+                        aria-label="Cari barang"
+                    >
 
                     <select
                         id="inventoryDepartmentFilter"
                         data-department-filter
+                        data-admin-only
+                        aria-label="Filter bagian"
                     >
                         <option value="">
                             Semua Bagian
@@ -658,6 +670,12 @@
                     </select>
 
                 </div>
+
+
+                <p
+                    id="inventorySearchInfo"
+                    class="search-info hidden"
+                ></p>
 
 
                 <div class="table-wrapper">
@@ -1072,6 +1090,57 @@
 
                 </div>
 
+
+                <!-- FOTO BUKTI (opsional) -->
+                <div class="form-group full proof-group">
+
+                    <label for="itemProofFile">
+                        📷 Foto Bukti <small>(opsional)</small>
+                    </label>
+
+                    <input
+                        type="file"
+                        id="itemProofFile"
+                        accept="image/jpeg,image/png,image/webp"
+                    >
+
+                    <small class="proof-hint">
+                        JPG, PNG, atau WebP. Foto otomatis dikecilkan.
+                        Riwayat foto lain ada di tombol 📎 Bukti.
+                    </small>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemProofDate">
+                        Tanggal Dokumentasi
+                    </label>
+
+                    <input
+                        type="date"
+                        id="itemProofDate"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="itemProofNote">
+                        Keterangan Foto
+                    </label>
+
+                    <input
+                        type="text"
+                        id="itemProofNote"
+                        maxlength="255"
+                        placeholder="mis. Kondisi saat diterima"
+                    >
+
+                </div>
+
             </div>
 
 
@@ -1160,7 +1229,7 @@
                     </select>
 
                     <small id="loanItemHint">
-                        Hanya barang kondisi Baik dan Kurang Baik
+                        Hanya barang kondisi Baik
                         yang bisa dipinjam.
                     </small>
 
@@ -1242,6 +1311,89 @@
 
                 </div>
 
+
+                <!-- BUKTI PEMINJAMAN (opsional) -->
+                <div class="form-group full proof-group">
+
+                    <label for="loanProofKind">
+                        📎 Bukti Peminjaman <small>(opsional)</small>
+                    </label>
+
+                    <select id="loanProofKind">
+                        <option value="upload">Upload file (foto / PDF)</option>
+                        <option value="link">Tempel link (Google Drive, dll.)</option>
+                    </select>
+
+                </div>
+
+
+                <div
+                    class="form-group full"
+                    data-proof-kind="upload"
+                >
+
+                    <input
+                        type="file"
+                        id="loanProofFile"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                    >
+
+                    <small class="proof-hint">
+                        Foto (JPG, PNG, WebP) atau PDF, maksimal 2 MB.
+                    </small>
+
+                </div>
+
+
+                <div
+                    class="form-group full hidden"
+                    data-proof-kind="link"
+                >
+
+                    <input
+                        type="url"
+                        id="loanProofLink"
+                        maxlength="500"
+                        placeholder="https://drive.google.com/..."
+                    >
+
+                    <small class="proof-hint">
+                        Pastikan link bisa dibuka oleh Admin
+                        (atur akses "Siapa saja yang memiliki link").
+                    </small>
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanProofDate">
+                        Tanggal Dokumentasi
+                    </label>
+
+                    <input
+                        type="date"
+                        id="loanProofDate"
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="loanProofNote">
+                        Keterangan Bukti
+                    </label>
+
+                    <input
+                        type="text"
+                        id="loanProofNote"
+                        maxlength="255"
+                        placeholder="mis. Surat peminjaman"
+                    >
+
+                </div>
+
             </div>
 
 
@@ -1262,6 +1414,175 @@
                     class="primary-btn"
                 >
                     Simpan
+                </button>
+
+            </div>
+
+        </form>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     MODAL DOKUMENTASI / BUKTI
+====================================================== -->
+
+<div
+    id="docModal"
+    class="modal hidden"
+>
+
+    <div class="modal-card doc-card">
+
+        <div class="modal-header">
+
+            <div>
+
+                <h2 id="docTitle">
+                    Dokumentasi
+                </h2>
+
+                <p id="docSubtitle">
+                    Bukti dan riwayat dokumentasi
+                </p>
+
+            </div>
+
+
+            <button
+                type="button"
+                class="modal-close"
+                onclick="closeDocModal()"
+            >
+                ×
+            </button>
+
+        </div>
+
+
+        <div
+            id="docList"
+            class="doc-list"
+        ></div>
+
+
+        <form id="docForm">
+
+            <h3 class="doc-form-title">
+                + Tambah Bukti
+            </h3>
+
+            <div class="form-grid">
+
+                <div
+                    class="form-group full"
+                    id="docKindGroup"
+                >
+
+                    <label for="docKind">
+                        Jenis Bukti
+                    </label>
+
+                    <select id="docKind">
+                        <option value="upload">Upload file (foto / PDF)</option>
+                        <option value="link">Tempel link (Google Drive, dll.)</option>
+                    </select>
+
+                </div>
+
+
+                <div
+                    class="form-group full"
+                    data-doc-kind="upload"
+                >
+
+                    <label for="docFile">
+                        File
+                    </label>
+
+                    <input
+                        type="file"
+                        id="docFile"
+                    >
+
+                    <small
+                        id="docFileHint"
+                        class="proof-hint"
+                    ></small>
+
+                </div>
+
+
+                <div
+                    class="form-group full hidden"
+                    data-doc-kind="link"
+                >
+
+                    <label for="docLink">
+                        Link
+                    </label>
+
+                    <input
+                        type="url"
+                        id="docLink"
+                        maxlength="500"
+                        placeholder="https://drive.google.com/..."
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="docDate">
+                        Tanggal Dokumentasi
+                    </label>
+
+                    <input
+                        type="date"
+                        id="docDate"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="docNote">
+                        Keterangan
+                    </label>
+
+                    <input
+                        type="text"
+                        id="docNote"
+                        maxlength="255"
+                        placeholder="mis. Foto saat rusak"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    type="button"
+                    class="secondary-btn"
+                    onclick="closeDocModal()"
+                >
+                    Tutup
+                </button>
+
+
+                <button
+                    type="submit"
+                    class="primary-btn"
+                >
+                    Simpan Bukti
                 </button>
 
             </div>

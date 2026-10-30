@@ -3,16 +3,17 @@
    API HISADA INVENTARIS
    ---------------------------------------------------------
    Dipanggil oleh script.js:  api/?aksi=nama_aksi
-   GET  : status, data
+   GET  : status, data, file
    POST : setup_admin, login, logout, daftar,
           barang_simpan, barang_hapus,
           pinjam_simpan, pinjam_kembali, pinjam_hapus,
-          akun_status
+          akun_status, dok_tambah, dok_hapus
    ========================================================= */
 
 declare(strict_types=1);
 
 require __DIR__ . '/inti.php';
+require __DIR__ . '/dokumentasi.php';
 
 /* Error tak terduga → pesan rapi, detail hanya di log server */
 set_exception_handler(function (Throwable $e) {
@@ -40,12 +41,13 @@ mulai_session();
 $aksi   = (string) ($_GET['aksi'] ?? '');
 $metode = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
-$aksi_get  = ['status', 'data'];
+$aksi_get  = ['status', 'data', 'file'];
 $aksi_post = [
     'setup_admin', 'login', 'logout', 'daftar',
     'barang_simpan', 'barang_hapus',
     'pinjam_simpan', 'pinjam_kembali', 'pinjam_hapus',
     'akun_status',
+    'dok_tambah', 'dok_hapus',
 ];
 
 if (in_array($aksi, $aksi_get, true)) {
@@ -118,6 +120,28 @@ function pinjam_publik(array $p): array
         'status'     => $p['status'],
         'note'       => $p['keterangan'] ?? '',
         'returnedAt' => waktu_js($p['waktu_kembali']),
+    ];
+}
+
+
+function dok_publik(array $d): array
+{
+    return [
+        'id'         => (string) $d['id'],
+        'parentType' => $d['barang_id'] !== null ? 'barang' : 'peminjaman',
+        'parentId'   => (string) ($d['barang_id'] ?? $d['peminjaman_id']),
+        'type'       => $d['tipe'],
+        'fileName'   => $d['nama_asli'] ?? '',
+        'size'       => $d['ukuran'] === null ? null : (int) $d['ukuran'],
+        'mime'       => $d['mime'] ?? '',
+        /* File dibuka lewat API (dicek login & bagian) */
+        'url'        => $d['tipe'] === 'link'
+            ? $d['url']
+            : 'api/?aksi=file&id=' . $d['id'],
+        'date'       => $d['tanggal'],
+        'note'       => $d['keterangan'] ?? '',
+        'uploadedBy' => $d['pengunggah'] ?? '-',
+        'createdAt'  => waktu_js($d['created_at']),
     ];
 }
 
@@ -337,12 +361,27 @@ function aksi_data(): void
         );
     }
 
+    /* Bukti mengikuti bagian pemilik barang / peminjamannya */
+    $filter_dok = $admin ? '' : 'WHERE COALESCE(b.bagian_id, p.bagian_id) = :bagian';
+
+    $dokumentasi = semua(
+        "SELECT d.*, a.nama AS pengunggah
+           FROM dokumentasi d
+      LEFT JOIN barang b     ON b.id = d.barang_id
+      LEFT JOIN peminjaman p ON p.id = d.peminjaman_id
+      LEFT JOIN akun a       ON a.id = d.diunggah_oleh
+           $filter_dok
+       ORDER BY d.tanggal DESC, d.id DESC",
+        $param
+    );
+
     berhasil([
-        'akun'       => akun_publik($akun),
-        'bagian'     => array_column(semua('SELECT nama FROM bagian ORDER BY id'), 'nama'),
-        'barang'     => array_map('barang_publik', $barang),
-        'peminjaman' => array_map('pinjam_publik', $pinjam),
-        'akunBagian' => $akun_bagian,
+        'akun'        => akun_publik($akun),
+        'bagian'      => array_column(semua('SELECT nama FROM bagian ORDER BY id'), 'nama'),
+        'barang'      => array_map('barang_publik', $barang),
+        'peminjaman'  => array_map('pinjam_publik', $pinjam),
+        'akunBagian'  => $akun_bagian,
+        'dokumentasi' => array_map('dok_publik', $dokumentasi),
     ]);
 }
 
@@ -409,7 +448,7 @@ function aksi_barang_simpan(): void
         $bagian_id = (int) $akun['bagian_id'];
     }
 
-    transaksi(function () use ($akun, $id, $nama, $baik, $kurang, $rusak, $hilang, $ket, $bagian_id) {
+    $id_tersimpan = transaksi(function () use ($akun, $id, $nama, $baik, $kurang, $rusak, $hilang, $ket, $bagian_id) {
         if ($id === 0) {
             query(
                 'INSERT INTO barang
@@ -424,7 +463,7 @@ function aksi_barang_simpan(): void
                 ]
             );
 
-            return;
+            return (int) db()->lastInsertId();
         }
 
         $lama = satu('SELECT * FROM barang WHERE id = ? FOR UPDATE', [$id]);
@@ -444,8 +483,9 @@ function aksi_barang_simpan(): void
             gagal("Barang ini masih dipinjam $dipinjam unit. Kembalikan dulu sebelum pindah bagian.");
         }
 
-        if ($baik + $kurang < $dipinjam) {
-            gagal("Masih ada $dipinjam unit yang dipinjam. Jumlah Baik + Kurang Baik tidak boleh kurang dari itu.");
+        /* Yang dipinjam selalu diambil dari stok Baik */
+        if ($baik < $dipinjam) {
+            gagal("Masih ada $dipinjam unit yang dipinjam. Jumlah Baik tidak boleh kurang dari itu.");
         }
 
         query(
@@ -461,9 +501,12 @@ function aksi_barang_simpan(): void
                 $akun['id'], $id,
             ]
         );
+
+        return $id;
     });
 
-    berhasil();
+    /* id dipakai script.js untuk upload foto bukti */
+    berhasil(['id' => (string) $id_tersimpan]);
 }
 
 function aksi_barang_hapus(): void
@@ -471,7 +514,7 @@ function aksi_barang_hapus(): void
     $akun = wajib_login();
     $id   = angka('id');
 
-    transaksi(function () use ($akun, $id) {
+    $file_bukti = transaksi(function () use ($akun, $id) {
         $barang = satu('SELECT bagian_id FROM barang WHERE id = ? FOR UPDATE', [$id]);
 
         if (!$barang) {
@@ -488,8 +531,15 @@ function aksi_barang_hapus(): void
             gagal("Barang ini masih dipinjam $dipinjam unit. Kembalikan dulu sebelum dihapus.");
         }
 
+        $file = file_bukti('barang_id', $id);
+
+        /* Baris dokumentasi ikut terhapus (ON DELETE CASCADE) */
         query('DELETE FROM barang WHERE id = ?', [$id]);
+
+        return $file;
     });
+
+    hapus_file_bukti($file_bukti);
 
     berhasil();
 }
@@ -552,7 +602,7 @@ function aksi_pinjam_simpan(): void
         gagal('Rencana kembali tidak boleh sebelum tanggal pinjam.');
     }
 
-    transaksi(function () use ($akun, $id, $barang_id, $jumlah, $peminjam, $waktu, $rencana, $ket) {
+    $id_tersimpan = transaksi(function () use ($akun, $id, $barang_id, $jumlah, $peminjam, $waktu, $rencana, $ket) {
         $lama = $id ? ambil_pinjaman($akun, $id) : null;
 
         $barang = satu('SELECT * FROM barang WHERE id = ? FOR UPDATE', [$barang_id]);
@@ -565,7 +615,8 @@ function aksi_pinjam_simpan(): void
         if (!$lama || $lama['status'] !== 'Dikembalikan') {
             $tersedia = max(
                 0,
-                (int) $barang['jumlah_baik'] + (int) $barang['jumlah_kurang_baik']
+                /* Hanya barang kondisi Baik yang bisa dipinjam */
+                (int) $barang['jumlah_baik']
                     - jumlah_dipinjam($barang_id, $id)
             );
 
@@ -597,10 +648,15 @@ function aksi_pinjam_simpan(): void
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                 array_merge($nilai, [kode_pinjam_baru(), $akun['id']])
             );
+
+            return (int) db()->lastInsertId();
         }
+
+        return $id;
     });
 
-    berhasil();
+    /* id dipakai script.js untuk upload bukti peminjaman */
+    berhasil(['id' => (string) $id_tersimpan]);
 }
 
 function aksi_pinjam_kembali(): void
@@ -633,11 +689,17 @@ function aksi_pinjam_hapus(): void
     $akun = wajib_login();
     $id   = angka('id');
 
-    transaksi(function () use ($akun, $id) {
+    $file_bukti = transaksi(function () use ($akun, $id) {
         ambil_pinjaman($akun, $id);
 
+        $file = file_bukti('peminjaman_id', $id);
+
         query('DELETE FROM peminjaman WHERE id = ?', [$id]);
+
+        return $file;
     });
+
+    hapus_file_bukti($file_bukti);
 
     berhasil();
 }

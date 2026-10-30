@@ -32,8 +32,15 @@ let currentUser = null;
 let serverData = {
   barang: [],
   peminjaman: [],
-  akunBagian: []
+  akunBagian: [],
+  dokumentasi: []
 };
+
+/* Modal dokumentasi yang sedang dibuka */
+let docTarget = null;
+
+/* Batas ukuran file bukti (sama dengan server) */
+const MAX_PROOF_SIZE = 2 * 1024 * 1024;
 
 /* Sudah ada akun Admin di database? */
 let adminExists = true;
@@ -210,10 +217,16 @@ async function api(aksi, data = null) {
   };
 
   if (data) {
-    options.headers["Content-Type"] = "application/json";
     /* Penanda bahwa permintaan berasal dari aplikasi ini */
     options.headers["X-HISADA"] = "1";
-    options.body = JSON.stringify(data);
+
+    if (data instanceof FormData) {
+      /* Upload file: browser yang mengatur Content-Type */
+      options.body = data;
+    } else {
+      options.headers["Content-Type"] = "application/json";
+      options.body = JSON.stringify(data);
+    }
   }
 
   let response;
@@ -263,7 +276,8 @@ async function refreshData() {
   serverData = {
     barang: result.barang || [],
     peminjaman: result.peminjaman || [],
-    akunBagian: result.akunBagian || []
+    akunBagian: result.akunBagian || [],
+    dokumentasi: result.dokumentasi || []
   };
 }
 
@@ -313,8 +327,12 @@ async function logout() {
   serverData = {
     barang: [],
     peminjaman: [],
-    akunBagian: []
+    akunBagian: [],
+    dokumentasi: []
   };
+
+  setValue("inventorySearch", "");
+  setValue("inventoryDepartmentFilter", "");
 
   showLoginPage();
 }
@@ -355,12 +373,13 @@ function visibleLoans() {
    TOTAL INVENTARIS
 ========================= */
 
-/* Total = barang yang masih ada (tanpa Hilang) */
+/* Total = jumlah keseluruhan (Baik + Kurang Baik + Rusak Berat + Hilang) */
 function itemTotal(item) {
   return (
     normalizeNumber(item.good) +
     normalizeNumber(item.fair) +
-    normalizeNumber(item.bad)
+    normalizeNumber(item.bad) +
+    normalizeNumber(item.lost)
   );
 }
 
@@ -380,13 +399,12 @@ function borrowedCount(itemId, ignoreLoanId = null) {
     );
 }
 
-/* Yang bisa dipinjam: kondisi Baik + Kurang Baik
+/* Yang bisa dipinjam: hanya kondisi Baik,
    dikurangi yang sedang dipinjam */
 function availableCount(item, ignoreLoanId = null) {
   return Math.max(
     0,
-    normalizeNumber(item.good) +
-      normalizeNumber(item.fair) -
+    normalizeNumber(item.good) -
       borrowedCount(item.id, ignoreLoanId)
   );
 }
@@ -606,11 +624,12 @@ function renderDashboard() {
       0
     );
 
-  /* Total tanpa Hilang */
+  /* Total = jumlah keseluruhan */
   const total =
     totalGood +
     totalFair +
-    totalBad;
+    totalBad +
+    totalLost;
 
   setText(
     "statGood",
@@ -697,6 +716,95 @@ function renderDepartmentSummary() {
    INVENTARIS
 ========================= */
 
+/* =========================
+   PENCARIAN BARANG
+========================= */
+
+/* Kata kunci dari kotak cari, mis. "tenda log" → ["tenda", "log"] */
+function searchTerms() {
+  return String(getValue("inventorySearch"))
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean);
+}
+
+/* Semua kata kunci harus ada di kode / nama / bagian / keterangan */
+function matchesSearch(item, terms) {
+  const text = [
+    item.code,
+    item.name,
+    item.department,
+    item.description
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return terms.every(
+    term => text.includes(term)
+  );
+}
+
+/* Tandai bagian teks yang cocok dengan <mark>, tetap aman dari HTML */
+function highlight(value, terms) {
+  const text =
+    String(value ?? "");
+
+  const lower =
+    text.toLowerCase();
+
+  if (
+    terms.length === 0 ||
+    lower.length !== text.length
+  ) {
+    return escapeHTML(text);
+  }
+
+  /* Cari semua posisi yang cocok, lalu gabungkan yang bertumpuk */
+  const ranges = [];
+
+  terms.forEach(term => {
+    let index =
+      lower.indexOf(term);
+
+    while (index !== -1) {
+      ranges.push([index, index + term.length]);
+      index = lower.indexOf(term, index + term.length);
+    }
+  });
+
+  if (ranges.length === 0) {
+    return escapeHTML(text);
+  }
+
+  ranges.sort((a, b) => a[0] - b[0]);
+
+  const merged = [ranges[0]];
+
+  ranges.slice(1).forEach(([start, end]) => {
+    const last =
+      merged[merged.length - 1];
+
+    if (start <= last[1]) {
+      last[1] = Math.max(last[1], end);
+    } else {
+      merged.push([start, end]);
+    }
+  });
+
+  let html = "";
+  let position = 0;
+
+  merged.forEach(([start, end]) => {
+    html +=
+      escapeHTML(text.slice(position, start)) +
+      `<mark>${escapeHTML(text.slice(start, end))}</mark>`;
+
+    position = end;
+  });
+
+  return html + escapeHTML(text.slice(position));
+}
+
 function renderInventory() {
   const tbody =
     $("inventoryTableBody");
@@ -725,11 +833,48 @@ function renderInventory() {
       );
   }
 
+  /* Pencarian */
+  const query =
+    String(getValue("inventorySearch")).trim();
+
+  const terms =
+    searchTerms();
+
+  const totalBeforeSearch =
+    data.length;
+
+  if (terms.length > 0) {
+    data =
+      data.filter(
+        item =>
+          matchesSearch(item, terms)
+      );
+  }
+
+  const info =
+    $("inventorySearchInfo");
+
+  if (info) {
+    info.classList.toggle(
+      "hidden",
+      terms.length === 0
+    );
+
+    info.textContent =
+      terms.length > 0
+        ? `Ditemukan ${data.length} dari ${totalBeforeSearch} barang untuk “${query}”`
+        : "";
+  }
+
   if (data.length === 0) {
     tbody.innerHTML = `
       <tr>
         <td colspan="11">
-          Belum ada data inventaris.
+          ${
+            terms.length > 0
+              ? `Tidak ada barang yang cocok dengan “${escapeHTML(query)}”.`
+              : "Belum ada data inventaris."
+          }
         </td>
       </tr>
     `;
@@ -751,6 +896,8 @@ function renderInventory() {
             Edit
           </button>
 
+          ${proofButton("barang", item.id)}
+
           <button
             class="btn btn-small btn-danger"
             onclick="deleteItem('${item.id}')"
@@ -761,10 +908,10 @@ function renderInventory() {
 
       return `
         <tr>
-          <td>${escapeHTML(item.code)}</td>
+          <td>${highlight(item.code, terms)}</td>
 
           <td>
-            ${escapeHTML(item.name)}
+            ${highlight(item.name, terms)}
           </td>
 
           <td>
@@ -788,11 +935,11 @@ function renderInventory() {
           </td>
 
           <td>
-            ${escapeHTML(item.department)}
+            ${highlight(item.department, terms)}
           </td>
 
           <td>
-            ${escapeHTML(item.description || "-")}
+            ${highlight(item.description || "-", terms)}
           </td>
 
           <td>
@@ -848,6 +995,8 @@ function openItemModal(id = null) {
           data => data.id === id
         )
       : null;
+
+  resetProofDate("itemProofDate");
 
   if (item) {
     setValue(
@@ -954,18 +1103,31 @@ async function saveItemFromForm() {
     return;
   }
 
+  const proofFile =
+    $("itemProofFile")?.files?.[0] || null;
+
   /* Bagian untuk akun bagian ditentukan server */
   const saved =
-    await saveToServer("barang_simpan", {
-      id: editingItemId || 0,
-      name,
-      department: getValue("itemDepartment"),
-      good: getValue("itemGood"),
-      fair: getValue("itemFair"),
-      bad: getValue("itemBad"),
-      lost: getValue("itemLost"),
-      description: getValue("itemDescription")
-    });
+    await saveWithProof(
+      "barang_simpan",
+      {
+        id: editingItemId || 0,
+        name,
+        department: getValue("itemDepartment"),
+        good: getValue("itemGood"),
+        fair: getValue("itemFair"),
+        bad: getValue("itemBad"),
+        lost: getValue("itemLost"),
+        description: getValue("itemDescription")
+      },
+      "barang",
+      proofFile && {
+        kind: "upload",
+        file: proofFile,
+        date: getValue("itemProofDate"),
+        note: getValue("itemProofNote")
+      }
+    );
 
   if (saved) {
     closeItemModal();
@@ -1102,6 +1264,8 @@ function renderLoans() {
                 : ""
             }
 
+            ${proofButton("peminjaman", loan.id)}
+
             <button
               class="btn btn-small btn-danger"
               onclick="deleteLoan('${loan.id}')"
@@ -1209,6 +1373,9 @@ function openLoanModal(id = null) {
     loan?.id || null
   );
 
+  resetProofDate("loanProofDate");
+  toggleProofKind("data-proof-kind", "upload");
+
   if (loan) {
     setValue(
       "loanQuantity",
@@ -1308,21 +1475,482 @@ async function saveLoanFromForm() {
     return;
   }
 
+  const proofKind =
+    getValue("loanProofKind") || "upload";
+
+  const proofFile =
+    $("loanProofFile")?.files?.[0] || null;
+
+  const proofLink =
+    String(getValue("loanProofLink")).trim();
+
+  const proof =
+    proofKind === "link"
+      ? proofLink && { kind: "link", url: proofLink }
+      : proofFile && { kind: "upload", file: proofFile };
+
   /* Stok & bagian dicek ulang oleh server */
   const saved =
-    await saveToServer("pinjam_simpan", {
-      id: editingLoanId || 0,
-      itemId,
-      quantity,
-      borrower,
-      borrowDate,
-      returnPlan,
-      note: getValue("loanNote")
-    });
+    await saveWithProof(
+      "pinjam_simpan",
+      {
+        id: editingLoanId || 0,
+        itemId,
+        quantity,
+        borrower,
+        borrowDate,
+        returnPlan,
+        note: getValue("loanNote")
+      },
+      "peminjaman",
+      proof && {
+        ...proof,
+        date: getValue("loanProofDate"),
+        note: getValue("loanProofNote")
+      }
+    );
 
   if (saved) {
     closeLoanModal();
   }
+}
+
+
+/* =========================
+   DOKUMENTASI / BUKTI
+========================= */
+
+function todayLocal() {
+  return nowLocalInput().slice(0, 10);
+}
+
+/* Tanggal dokumentasi default hari ini, tidak boleh lewat hari ini */
+function resetProofDate(id) {
+  const input =
+    $(id);
+
+  if (!input) {
+    return;
+  }
+
+  input.value =
+    todayLocal();
+
+  input.max =
+    todayLocal();
+}
+
+/* Tampilkan isian sesuai jenis bukti (upload / link) */
+function toggleProofKind(attribute, kind) {
+  document
+    .querySelectorAll(`[${attribute}]`)
+    .forEach(element => {
+      element.classList.toggle(
+        "hidden",
+        element.getAttribute(attribute) !== kind
+      );
+    });
+}
+
+function docsFor(parentType, parentId) {
+  return serverData.dokumentasi.filter(
+    doc =>
+      doc.parentType === parentType &&
+      doc.parentId === parentId
+  );
+}
+
+function proofButton(parentType, parentId) {
+  const count =
+    docsFor(parentType, parentId).length;
+
+  return `
+    <button
+      class="btn btn-small btn-proof"
+      onclick="openDocModal('${parentType}', '${parentId}')"
+      title="Dokumentasi / bukti"
+    >
+      📎 Bukti${count ? ` (${count})` : ""}
+    </button>
+  `;
+}
+
+/* Kecilkan foto di browser sebelum upload (maks. 1600 px, JPEG).
+   Kalau gagal / tidak didukung, file asli yang dipakai. */
+async function compressImage(file) {
+  if (
+    !file ||
+    !/^image\/(jpeg|png|webp)$/.test(file.type) ||
+    typeof createImageBitmap !== "function"
+  ) {
+    return file;
+  }
+
+  try {
+    const bitmap =
+      await createImageBitmap(file);
+
+    const scale =
+      Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+
+    const canvas =
+      document.createElement("canvas");
+
+    canvas.width =
+      Math.round(bitmap.width * scale);
+
+    canvas.height =
+      Math.round(bitmap.height * scale);
+
+    const context =
+      canvas.getContext("2d");
+
+    /* Latar putih untuk PNG transparan */
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+
+    const blob =
+      await new Promise(resolve =>
+        canvas.toBlob(resolve, "image/jpeg", 0.82)
+      );
+
+    if (!blob || blob.size >= file.size) {
+      return file;
+    }
+
+    return new File(
+      [blob],
+      file.name.replace(/\.\w+$/, "") + ".jpg",
+      { type: "image/jpeg" }
+    );
+  } catch (error) {
+    return file;
+  }
+}
+
+/* Kirim satu bukti ke server */
+async function uploadProof(parentType, parentId, proof) {
+  const form =
+    new FormData();
+
+  form.append("parentType", parentType);
+  form.append("parentId", parentId);
+  form.append("kind", proof.kind);
+  form.append("date", proof.date || todayLocal());
+  form.append("note", proof.note || "");
+
+  if (proof.kind === "link") {
+    form.append("url", proof.url);
+  } else {
+    const file =
+      await compressImage(proof.file);
+
+    if (file.size > MAX_PROOF_SIZE) {
+      throw new Error(
+        "File terlalu besar. Maksimal 2 MB."
+      );
+    }
+
+    form.append("file", file, file.name);
+  }
+
+  await api("dok_tambah", form);
+}
+
+/* Simpan data (barang / peminjaman), lalu bukti kalau ada */
+async function saveWithProof(aksi, data, parentType, proof) {
+  let result;
+
+  try {
+    result =
+      await api(aksi, data);
+  } catch (error) {
+    alert(error.message);
+    return false;
+  }
+
+  if (proof) {
+    try {
+      await uploadProof(parentType, result.id, proof);
+    } catch (error) {
+      alert(
+        `Data tersimpan, tapi bukti gagal disimpan: ${error.message}\nCoba lagi lewat tombol 📎 Bukti.`
+      );
+    }
+  }
+
+  try {
+    await refreshData();
+  } catch (error) {
+    alert(error.message);
+  }
+
+  renderAll();
+  return true;
+}
+
+function formatSize(bytes) {
+  if (!bytes) return "";
+
+  return bytes < 1024 * 1024
+    ? `${Math.max(1, Math.round(bytes / 1024))} KB`
+    : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function renderDocList() {
+  const list =
+    $("docList");
+
+  if (!list || !docTarget) {
+    return;
+  }
+
+  const docs =
+    docsFor(docTarget.type, docTarget.id);
+
+  if (docs.length === 0) {
+    list.innerHTML = `
+      <p class="doc-empty">
+        Belum ada bukti. Tambahkan di bawah.
+      </p>
+    `;
+
+    return;
+  }
+
+  list.innerHTML =
+    docs.map(doc => {
+      const url =
+        escapeHTML(doc.url);
+
+      let preview;
+
+      if (doc.type === "gambar") {
+        preview = `
+          <a href="${url}" target="_blank" rel="noopener noreferrer" class="doc-thumb">
+            <img src="${url}" alt="${escapeHTML(doc.note || doc.fileName)}" loading="lazy">
+          </a>
+        `;
+      } else if (doc.type === "file") {
+        preview = `
+          <a href="${url}" target="_blank" rel="noopener noreferrer" class="doc-thumb doc-icon">
+            📄<span>PDF</span>
+          </a>
+        `;
+      } else {
+        preview = `
+          <a href="${url}" target="_blank" rel="noopener noreferrer" class="doc-thumb doc-icon">
+            🔗<span>Link</span>
+          </a>
+        `;
+      }
+
+      let source;
+
+      if (doc.type === "link") {
+        let host = doc.url;
+
+        try {
+          host = new URL(doc.url).hostname;
+        } catch (error) {
+          /* tampilkan apa adanya */
+        }
+
+        source = `<a href="${url}" target="_blank" rel="noopener noreferrer">${escapeHTML(host)}</a>`;
+      } else {
+        source = `${escapeHTML(doc.fileName)} ${doc.size ? `· ${formatSize(doc.size)}` : ""}`;
+      }
+
+      return `
+        <div class="doc-item">
+          ${preview}
+
+          <div class="doc-info">
+            <strong>📅 ${formatDate(doc.date)}</strong>
+            <span>${escapeHTML(doc.note || "-")}</span>
+            <small>${source}</small>
+            <small>Diunggah ${escapeHTML(doc.uploadedBy)} · ${formatDateTime(doc.createdAt)}</small>
+          </div>
+
+          <button
+            type="button"
+            class="btn btn-small btn-danger"
+            onclick="deleteDoc('${doc.id}')"
+          >
+            Hapus
+          </button>
+        </div>
+      `;
+    }).join("");
+
+  runAnimation("rows", list);
+}
+
+function openDocModal(parentType, parentId) {
+  const parent =
+    parentType === "barang"
+      ? items().find(item => item.id === parentId)
+      : loans().find(loan => loan.id === parentId);
+
+  if (!parent) {
+    return;
+  }
+
+  docTarget = {
+    type: parentType,
+    id: parentId
+  };
+
+  setText(
+    "docTitle",
+    parentType === "barang"
+      ? `📷 Dokumentasi ${parent.code} · ${parent.name}`
+      : `📎 Bukti ${parent.code} · ${parent.itemName}`
+  );
+
+  setText(
+    "docSubtitle",
+    parentType === "barang"
+      ? "Foto bukti barang, urut dari tanggal terbaru"
+      : `Peminjam: ${parent.borrower} · ${formatDateTime(parent.borrowDate)}`
+  );
+
+  const form =
+    $("docForm");
+
+  if (form) {
+    form.reset();
+  }
+
+  /* Bukti barang hanya foto; peminjaman boleh foto/PDF/link */
+  const isItem =
+    parentType === "barang";
+
+  $("docKindGroup")?.classList.toggle("hidden", isItem);
+
+  const fileInput =
+    $("docFile");
+
+  if (fileInput) {
+    fileInput.accept =
+      isItem
+        ? "image/jpeg,image/png,image/webp"
+        : "image/jpeg,image/png,image/webp,application/pdf";
+  }
+
+  setText(
+    "docFileHint",
+    isItem
+      ? "JPG, PNG, atau WebP. Foto otomatis dikecilkan."
+      : "Foto (JPG, PNG, WebP) atau PDF, maksimal 2 MB."
+  );
+
+  toggleProofKind("data-doc-kind", "upload");
+  resetProofDate("docDate");
+  renderDocList();
+
+  const modal =
+    $("docModal");
+
+  if (modal) {
+    modal.classList.remove("hidden");
+    runAnimation("modal", modal);
+  }
+}
+
+function closeDocModal() {
+  docTarget = null;
+
+  $("docModal")?.classList.add("hidden");
+}
+
+async function saveDocFromForm() {
+  if (!docTarget) {
+    return;
+  }
+
+  const kind =
+    docTarget.type === "barang"
+      ? "upload"
+      : getValue("docKind");
+
+  const file =
+    $("docFile")?.files?.[0] || null;
+
+  const url =
+    String(getValue("docLink")).trim();
+
+  if (kind === "upload" && !file) {
+    alert("Pilih file bukti dulu.");
+    return;
+  }
+
+  if (kind === "link" && !url) {
+    alert("Tempel link bukti dulu.");
+    return;
+  }
+
+  try {
+    await uploadProof(docTarget.type, docTarget.id, {
+      kind,
+      file,
+      url,
+      date: getValue("docDate"),
+      note: getValue("docNote")
+    });
+
+    await refreshData();
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  $("docForm")?.reset();
+  resetProofDate("docDate");
+  toggleProofKind("data-doc-kind", "upload");
+
+  renderAll();
+  renderDocList();
+}
+
+async function deleteDoc(id) {
+  if (!confirm("Hapus bukti ini?")) {
+    return;
+  }
+
+  try {
+    await api("dok_hapus", { id });
+    await refreshData();
+  } catch (error) {
+    alert(error.message);
+    return;
+  }
+
+  renderAll();
+  renderDocList();
+}
+
+function setupDocForms() {
+  $("docForm")?.addEventListener(
+    "submit",
+    event => {
+      event.preventDefault();
+      saveDocFromForm();
+    }
+  );
+
+  $("docKind")?.addEventListener(
+    "change",
+    event =>
+      toggleProofKind("data-doc-kind", event.target.value)
+  );
+
+  $("loanProofKind")?.addEventListener(
+    "change",
+    event =>
+      toggleProofKind("data-proof-kind", event.target.value)
+  );
 }
 
 
@@ -1950,6 +2578,51 @@ function setupInventoryFilter() {
     "change",
     renderInventory
   );
+
+  const search =
+    $("inventorySearch");
+
+  if (search) {
+    search.addEventListener(
+      "input",
+      renderInventory
+    );
+
+    /* Esc = hapus pencarian */
+    search.addEventListener(
+      "keydown",
+      event => {
+        if (event.key === "Escape" && search.value) {
+          search.value = "";
+          renderInventory();
+        }
+      }
+    );
+  }
+
+  /* Tombol "/" = langsung ke kotak cari (di halaman Inventaris) */
+  document.addEventListener(
+    "keydown",
+    event => {
+      const typing =
+        event.target.closest?.("input, textarea, select");
+
+      const inventoryOpen =
+        !document
+          .querySelector('[data-section="inventory"]')
+          ?.classList.contains("hidden");
+
+      if (
+        event.key === "/" &&
+        !typing &&
+        inventoryOpen &&
+        search
+      ) {
+        event.preventDefault();
+        search.focus();
+      }
+    }
+  );
 }
 
 
@@ -2026,6 +2699,13 @@ function setupModalOutsideClick() {
       ) {
         closeLoanModal();
       }
+
+      if (
+        event.target ===
+        $("docModal")
+      ) {
+        closeDocModal();
+      }
     }
   );
 }
@@ -2049,6 +2729,7 @@ async function init() {
 
   setupInventoryFilter();
   setupModalOutsideClick();
+  setupDocForms();
 
   startClock();
 
@@ -2112,6 +2793,15 @@ window.returnLoan =
 
 window.deleteLoan =
   deleteLoan;
+
+window.openDocModal =
+  openDocModal;
+
+window.closeDocModal =
+  closeDocModal;
+
+window.deleteDoc =
+  deleteDoc;
 
 window.approveUser =
   approveUser;

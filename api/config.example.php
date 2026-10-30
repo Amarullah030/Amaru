@@ -13,6 +13,12 @@ return [
     'db_user' => 'root',
     'db_pass' => '',
 
+    /* Folder penyimpanan foto/PDF bukti (opsional).
+       Bawaan: folder uploads/ di sebelah index.html.
+       Lebih aman kalau di luar public_html, mis.
+       '/home/namaakun/hisada_uploads' */
+    // 'upload_dir' => '/home/namaakun/hisada_uploads',
+
     /* true hanya kalau website sudah pakai https */
     'cookie_secure' => false,
 ];

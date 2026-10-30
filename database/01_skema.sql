@@ -184,8 +184,8 @@ CREATE TABLE IF NOT EXISTS peminjaman (
 -- 5. VIEW — dipakai untuk tabel & dashboard
 -- ---------------------------------------------------------
 
--- Stok tiap barang: total (tanpa Hilang), sedang dipinjam,
--- dan sisa yang bisa dipinjam (Baik + Kurang Baik − dipinjam)
+-- Stok tiap barang: total keseluruhan (termasuk Hilang),
+-- sedang dipinjam, dan sisa yang bisa dipinjam (Baik − dipinjam)
 CREATE OR REPLACE VIEW v_stok_barang AS
 SELECT
   b.id,
@@ -198,10 +198,10 @@ SELECT
   b.jumlah_rusak_berat,
   b.jumlah_hilang,
   b.jumlah_baik + b.jumlah_kurang_baik + b.jumlah_rusak_berat
-    AS total_ada,
+    + b.jumlah_hilang AS total,
   COALESCE(p.dipinjam, 0) AS dipinjam,
   GREATEST(
-    CAST(b.jumlah_baik + b.jumlah_kurang_baik AS SIGNED)
+    CAST(b.jumlah_baik AS SIGNED)
       - COALESCE(p.dipinjam, 0),
     0
   ) AS tersedia,
@@ -229,7 +229,8 @@ SELECT
   COALESCE(SUM(b.jumlah_hilang), 0)         AS hilang,
   COALESCE(SUM(
     b.jumlah_baik + b.jumlah_kurang_baik + b.jumlah_rusak_berat
-  ), 0)                                     AS total_ada
+    + b.jumlah_hilang
+  ), 0)                                     AS total
 FROM bagian bg
 LEFT JOIN barang b ON b.bagian_id = bg.id
 GROUP BY bg.id, bg.kode, bg.nama;

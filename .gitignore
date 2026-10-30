@@ -1,2 +1,5 @@
 # Berisi password database — jangan di-upload
 api/config.php
+
+# File bukti yang di-upload pengguna
+uploads/
